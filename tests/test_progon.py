@@ -12,12 +12,13 @@ import build
 from build import FCSTD, ROOT, VIEWS
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
+MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
 
 
 class ProgonTest(unittest.TestCase):
     """Прогон целиком: build.cmd как подпроцесс."""
 
-    def test_progon_saves_fcstd_with_stub_and_three_views(self):
+    def test_progon_saves_fcstd_with_plug_meshes_and_three_views(self):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
 
@@ -32,6 +33,11 @@ class ProgonTest(unittest.TestCase):
         try:
             labels = [obj.Label for obj in doc.Objects]
             self.assertIn("Заглушка", labels)
+            meshes = []
+            for obj in doc.Objects:
+                if obj.isDerivedFrom("Mesh::Feature"):
+                    meshes.append(obj.Label)
+            self.assertCountEqual(meshes, MESH_LABELS)
         finally:
             FreeCAD.closeDocument(doc.Name)
         for name in VIEW_NAMES:
@@ -41,7 +47,7 @@ class ProgonTest(unittest.TestCase):
 
 
 def scene_of(shapes):
-    """Подмена scene.build: тела с готовыми Shape по Label."""
+    """Подмена scene.build: тела с готовыми Shape по Label, без референсов."""
 
     def build_scene(doc):
         objects = []
@@ -50,7 +56,7 @@ def scene_of(shapes):
             obj.Label = label
             obj.Shape = shape
             objects.append(obj)
-        return objects
+        return objects, []
 
     return build_scene
 

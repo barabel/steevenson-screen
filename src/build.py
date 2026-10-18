@@ -29,7 +29,7 @@ def save(doc):
     log(f"сохранено: {FCSTD}")
 
 
-def render(bodies):
+def render(bodies, references):
     """PNG-виды в dist/views: главный, слева, фронтальный разрез. Без окна.
 
     Сбой не роняет Прогон: возвращает текст ошибки, проверки идут дальше.
@@ -38,7 +38,7 @@ def render(bodies):
     try:
         import views  # тянет FreeCADGui и pivy — только когда рендерим
 
-        paths = views.render(bodies, VIEWS)
+        paths = views.render(bodies, references, VIEWS)
     except Exception as error:
         traceback.print_exc()
         sys.stderr.flush()
@@ -50,18 +50,23 @@ def render(bodies):
 
 def run():
     doc = FreeCAD.newDocument("shield")
-    objects = scene.build(doc)
+    body_objects, reference_objects = scene.build(doc)
     doc.recompute()
     bodies = {}
-    for obj in objects:
+    for obj in body_objects:
         bodies[obj.Label] = obj.Shape
+    references = {}
+    for obj in reference_objects:
+        references[obj.Label] = obj.Mesh
 
     save(doc)
     errors = []
-    render_error = render(bodies)
+    render_error = render(bodies, references)
     if render_error:
         errors.append(render_error)
     errors += check(bodies)
+    for check_fn in scene.checks():
+        errors += check_fn(bodies)
 
     for error in errors:
         log(f"ОШИБКА: {error}")
