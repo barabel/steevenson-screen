@@ -13,7 +13,7 @@ from build import FCSTD, ROOT, VIEWS
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
-DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка"]
+DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка", "Дно", "Держатель"]
 
 
 class ProgonTest(unittest.TestCase):

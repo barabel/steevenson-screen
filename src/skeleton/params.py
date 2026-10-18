@@ -26,7 +26,7 @@ DISH_COUNT = 6  # N: Тарелки вместе с Нижней, без Кры�
 # Стойки: бобышки заодно с Тарелкой, от неё вверх до соседней Тарелки;
 # сквозь все Тарелки и Крышку — отверстие под Шпильку.
 STANDOFF_COUNT = 4
-STANDOFF_RADIUS = 46  # ось Стойки от оси Щита: между отверстием (38) и краем (70)
+STANDOFF_RADIUS = 54  # ось Стойки от оси Щита: снаружи резьбового кольца (49) с местом под гайку M4
 STANDOFF_ANGLE = 45  # градусы от +X до первой Стойки: ни одна не смотрит на Откос
 STANDOFF_DIAMETER = 10  # бобышка
 STUD_HOLE_DIAMETER = 4.5  # под Шпильку M4, зазор 0.25 на сторону
@@ -38,8 +38,24 @@ SPACER_HEIGHT = 20  # проставка между верхом Крышки и
 # Стык Щит↔Откос.
 JAMB_TO_DISH = 150  # от кирпича Откоса до края Тарелок, по X
 
+# Стык Нижняя Тарелка↔Дно: резьбовое кольцо снизу Нижней Тарелки, Дно
+# навинчивается в него. Витков в Скелете нет, их делают фазы 3 и 5.
+THREAD_DIAMETER = 90  # внутренний Ø кольца
+THREAD_PITCH = 5
+THREAD_ANGLE = 45  # угол профиля, градусы
+THREAD_LENGTH = 15  # по Z, от низа Нижней Тарелки у кольца
+THREAD_CLEARANCE = 0.4  # радиальный, на сторону; до Пробника
+THREAD_RING_WALL = 4  # стенка кольца под витки и за ними
+
+# Держатель: вертикальная пластина на Дне за Корпусом (−X), наверху Крючок —
+# стержень Ø стержня крючка Вешалки через отверстие Ушка.
+HOLDER_THICKNESS = 3  # по X
+HOLDER_WIDTH = 20  # по Y; пластина Вешалки — 18
+
 # Зазоры.
 PLUG_MIN_GAP = 10  # воздух вокруг Заглушки до любого тела, кроме Держателя
+NOSE_TO_FLOOR_GAP = 10  # низ Носика над верхом Дна
+HOOK_TO_LID_GAP = 10  # верх Крючка под Крышкой, не меньше
 
 
 # Выводимые параметры.
@@ -60,12 +76,23 @@ def stack_height():
     return -dish_top(DISH_COUNT) + DISH_RISE + dish_wall_height()
 
 
+def dish_bottom_at(r):
+    """Z нижней поверхности конуса Нижней Тарелки на радиусе r."""
+    run = (DISH_DIAMETER - DISH_HOLE_DIAMETER) / 2
+    hole = DISH_HOLE_DIAMETER / 2
+    return dish_top(DISH_COUNT) - dish_wall_height() - (r - hole) * DISH_RISE / run
+
+
+def floor_top():
+    """Z верха Дна: верх резьбы, где кольцо выходит из-под Нижней Тарелки."""
+    return dish_bottom_at(THREAD_DIAMETER / 2)
+
+
 def sensor_shift():
     """Перенос Датчика из его системы координат в Щит, только сдвиг.
 
-    Ось Носика — на оси Щита. Пока нет Дна, по Z: верх Заглушки (верх Ушка)
-    на PLUG_MIN_GAP ниже Крышки.
+    Ось Носика — на оси Щита, низ Носика — на NOSE_TO_FLOOR_GAP выше Дна.
     """
-    plug_top = sensor.EAR_OUTER_DIAMETER / 2
-    z = -dish_wall_height() - PLUG_MIN_GAP - plug_top
+    nose_bottom = sensor.CASE_Z - sensor.CASE_DIAMETER / 2 - sensor.NOSE_LENGTH
+    z = floor_top() + NOSE_TO_FLOOR_GAP - nose_bottom
     return FreeCAD.Vector(-sensor.NOSE_X, 0, z)

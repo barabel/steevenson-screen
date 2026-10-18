@@ -11,10 +11,13 @@ import Part
 from . import params
 
 V = FreeCAD.Vector
+X = V(1, 0, 0)
 Z = V(0, 0, 1)
 
 LID = "Крышка"
 BOTTOM_DISH = "Нижняя Тарелка"
+FLOOR = "Дно"
+HOLDER = "Держатель"
 
 
 def revolved(points):
@@ -95,6 +98,70 @@ def dish(index):
     return stud_holes(body).removeSplitter()
 
 
+def thread_ring():
+    """Резьбовое кольцо под Нижней Тарелкой, без витков.
+
+    Верх кольца — по средней линии стенки конуса: врезан в Тарелку, наружу
+    не выходит. Низ — на THREAD_LENGTH ниже, чем конус у внутренней стенки.
+    """
+    inner = params.THREAD_DIAMETER / 2
+    outer = inner + params.THREAD_RING_WALL
+    middle = params.dish_wall_height() / 2
+    bottom = params.floor_top() - params.THREAD_LENGTH
+    return revolved([
+        (inner, params.dish_bottom_at(inner) + middle),
+        (outer, params.dish_bottom_at(outer) + middle),
+        (outer, bottom),
+        (inner, bottom),
+    ])
+
+
+def bottom_dish():
+    """Нижняя Тарелка: Тарелка со Стойками и резьбовым кольцом снизу."""
+    return dish(params.DISH_COUNT).fuse(thread_ring()).removeSplitter()
+
+
+def floor():
+    """Дно: цилиндр в резьбовом кольце с радиальным зазором резьбы."""
+    radius = params.THREAD_DIAMETER / 2 - params.THREAD_CLEARANCE
+    return Part.makeCylinder(
+        radius,
+        params.THREAD_LENGTH,
+        V(0, 0, params.floor_top() - params.THREAD_LENGTH),
+        Z,
+    )
+
+
+def holder():
+    """Держатель: пластина на Дне за Корпусом, наверху Крючок через Ушко.
+
+    Корпус опирается на пластину спиной. Крючок — прямой стержень, Ушко
+    лежит на нём верхом отверстия; вылет — как у крючка Вешалки.
+    """
+    sensor = params.sensor
+    ear = params.sensor_shift()  # центр отверстия Ушка
+    face = ear.x + sensor.CASE_X  # спина Корпуса
+    rod = sensor.HANGER_ROD_DIAMETER / 2
+    rod_z = ear.z + sensor.EAR_INNER_DIAMETER / 2 - rod
+    thickness = params.HOLDER_THICKNESS
+    width = params.HOLDER_WIDTH
+    floor_top = params.floor_top()
+    # верх пластины — по оси стержня: стержень не касается её верха
+    plate = Part.makeBox(
+        thickness,
+        width,
+        rod_z - floor_top,
+        V(face - thickness, -width / 2, floor_top),
+    )
+    hook = Part.makeCylinder(
+        rod,
+        thickness + sensor.HANGER_REACH - sensor.HANGER_PLATE_THICKNESS,
+        V(face - thickness, 0, rod_z),
+        X,
+    )
+    return plate.fuse(hook).removeSplitter()
+
+
 def lid():
     """Крышка: Тарелка с закрытым отверстием, верх — в Точке подвеса."""
     wall = params.dish_wall_height()
@@ -109,11 +176,13 @@ def lid():
 
 
 def drafts():
-    """Черновики стопки: метка → Shape, сверху вниз."""
+    """Черновики: метка → Shape, стопка сверху вниз, затем Дно и Держатель."""
     shapes = {LID: lid()}
     for index in range(1, params.DISH_COUNT):
         shapes[f"Тарелка {index}"] = dish(index)
-    shapes[BOTTOM_DISH] = dish(params.DISH_COUNT)
+    shapes[BOTTOM_DISH] = bottom_dish()
+    shapes[FLOOR] = floor()
+    shapes[HOLDER] = holder()
     return shapes
 
 
