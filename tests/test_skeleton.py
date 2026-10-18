@@ -83,3 +83,16 @@ class SkeletonTest(unittest.TestCase):
         reach = params.bracket_reach()
         with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
             self.assertLess(params.bracket_reach(), reach)
+
+    def test_holder_wider_than_bottom_dish_hole(self):
+        ring = Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5))
+        bodies = {
+            "Нижняя Тарелка": ring,
+            "Дно": Part.makeCylinder(25, 5),
+            "Держатель": Part.makeBox(70, 4, 10, V(-35, -2, 10)),
+            "Заглушка": Part.makeBox(10, 10, 10, V(-5, -5, 20)),
+        }
+
+        errors = skeleton_errors(bodies)
+
+        self.assertError(errors, "выход вниз", "Нижняя Тарелка")

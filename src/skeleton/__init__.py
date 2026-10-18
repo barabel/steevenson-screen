@@ -8,6 +8,8 @@ import math
 import FreeCAD
 import Part
 
+from checks import MAX_OVERLAP
+
 from . import params
 
 V = FreeCAD.Vector
@@ -235,7 +237,53 @@ def plug_gap(bodies):
     return errors
 
 
-CHECKS = [plug_gap]  # bodies → список ошибок, как в checks.py
+def axis_radius(shape):
+    """Наибольшее расстояние тела от оси Щита, по точкам триангуляции."""
+    points, _ = shape.tessellate(0.01)
+    radii = []
+    for point in points:
+        radii.append(math.hypot(point.x, point.y))
+    return max(radii)
+
+
+def down_exit(bodies):
+    """Выход вниз: Дно, Держатель и Заглушка уходят вниз из Щита, ничего
+    не задевая, — так меняют батарейку, не снимая Щит.
+
+    Проверка по радиусам: путь тела — цилиндр вокруг оси Щита радиусом его
+    дальней от оси точки, от верха тела до низа Щита. Тело Щита в этом
+    цилиндре — задевание. Цилиндр шире настоящего пути, поэтому проверка
+    задевание не пропустит, но может поднять ложное у тела не на оси.
+
+    Нет Дна, Держателя или Заглушки или кто-то из них null — молчит.
+    """
+    leaving = [FLOOR, HOLDER, PLUG]
+    for name in leaving:
+        if name not in bodies or bodies[name].isNull():
+            return []
+    staying = {}
+    bottom = math.inf  # ниже всех тел Щита: тело вышло целиком
+    for name, shape in bodies.items():
+        if name not in leaving and not shape.isNull():
+            staying[name] = shape
+            bottom = min(bottom, shape.BoundBox.ZMin - 1)
+    errors = []
+    for name in leaving:
+        shape = bodies[name]
+        radius = axis_radius(shape)
+        height = shape.BoundBox.ZMax - bottom
+        path = Part.makeCylinder(radius, height, V(0, 0, bottom), Z)
+        for other, other_shape in staying.items():
+            hit = path.common(other_shape)
+            if not hit.isNull() and hit.Volume > MAX_OVERLAP:  # мимо — null
+                errors.append(
+                    f"{name}: выход вниз — задевает {other},"
+                    f" {name} до {radius:.2f} мм от оси Щита",
+                )
+    return errors
+
+
+CHECKS = [plug_gap, down_exit]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):
