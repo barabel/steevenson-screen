@@ -1,2 +1,4 @@
 .scratch/
 .claude/
+dist/
+__pycache__/
