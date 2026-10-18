@@ -37,14 +37,14 @@ class SensorTest(unittest.TestCase):
                 return
         self.fail(f"нет ошибки со словами {words}: {errors}")
 
-    def test_stub_from_params_has_no_errors(self):
-        errors = sensor_check({"Заглушка": sensor.stub()})
+    def test_plug_from_params_has_no_errors(self):
+        errors = sensor_check({"Заглушка": sensor.plug()})
 
         self.assertEqual(errors, [])
 
-    def test_stub_grown_by_2_mm_breaks_gabarit(self):
+    def test_plug_grown_by_2_mm_breaks_gabarit(self):
         for axis in "XYZ":
             with self.subTest(axis=axis):
-                errors = sensor_check({"Заглушка": grown(sensor.stub(), axis)})
+                errors = sensor_check({"Заглушка": grown(sensor.plug(), axis)})
 
                 self.assertError(errors, "Заглушка", "габарит", f"по {axis}", "мм")

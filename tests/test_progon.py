@@ -18,7 +18,7 @@ MESH_LABELS = ["Корпус, нижняя половина", "Корпус, в�
 class ProgonTest(unittest.TestCase):
     """Прогон целиком: build.cmd как подпроцесс."""
 
-    def test_progon_saves_fcstd_with_stub_meshes_and_three_views(self):
+    def test_progon_saves_fcstd_with_plug_meshes_and_three_views(self):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
 

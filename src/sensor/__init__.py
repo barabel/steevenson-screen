@@ -21,10 +21,10 @@ V = FreeCAD.Vector
 X = V(1, 0, 0)
 DOWN = V(0, 0, -1)
 
-STUB = "Заглушка"
+PLUG = "Заглушка"
 
 
-def stub():
+def plug():
     """Заглушка из параметров: диск Корпуса + Носик + Ушко, один solid."""
     case_radius = CASE_DIAMETER / 2
     case = Part.makeCylinder(case_radius, CASE_THICKNESS, V(CASE_X, 0, CASE_Z), X)
@@ -35,8 +35,18 @@ def stub():
         V(NOSE_X, 0, CASE_Z),
         DOWN,
     )
-    ear = Part.makeCylinder(EAR_OUTER_DIAMETER / 2, EAR_THICKNESS, V(EAR_X, 0, 0), X)
-    hole = Part.makeCylinder(EAR_INNER_DIAMETER / 2, EAR_THICKNESS, V(EAR_X, 0, 0), X)
+    ear = Part.makeCylinder(
+        EAR_OUTER_DIAMETER / 2,
+        EAR_THICKNESS,
+        V(EAR_X, 0, 0),
+        X,
+    )
+    hole = Part.makeCylinder(
+        EAR_INNER_DIAMETER / 2,
+        EAR_THICKNESS,
+        V(EAR_X, 0, 0),
+        X,
+    )
     return case.fuse([nose, ear.cut(hole)]).removeSplitter()
 
 
@@ -48,7 +58,7 @@ def gabarit(bodies):
 
     Нет Заглушки или она null — молчит: это ловят тест Прогона и checks.valid.
     """
-    shape = bodies.get(STUB)
+    shape = bodies.get(PLUG)
     if shape is None or shape.isNull():
         return []
     box = shape.BoundBox
@@ -62,7 +72,7 @@ def gabarit(bodies):
         delta = max(abs(low - case_low), abs(high - case_high))
         if delta > MAX_GABARIT_DELTA:
             errors.append(
-                f"{STUB}: габарит по {axis} расходится с мешами Корпуса"
+                f"{PLUG}: габарит по {axis} расходится с мешами Корпуса"
                 f" на {delta:.2f} мм ({low:.2f}…{high:.2f}"
                 f" против {case_low:.2f}…{case_high:.2f})",
             )
@@ -74,7 +84,7 @@ CHECKS = [gabarit]  # bodies → список ошибок, как в checks.py
 
 def build(doc):
     """Добавляет объекты Датчика в doc, возвращает (тела, референсы)."""
-    obj = doc.addObject("Part::Feature", "Stub")
-    obj.Label = STUB
-    obj.Shape = stub()
+    obj = doc.addObject("Part::Feature", "Plug")
+    obj.Label = PLUG
+    obj.Shape = plug()
     return [obj], meshes.load(doc)
