@@ -8,8 +8,9 @@
 Фазы добавляют свои пакеты в PARTS, каркас Прогона не меняется.
 """
 import sensor
+import skeleton
 
-PARTS = [sensor]
+PARTS = [skeleton, sensor]
 
 
 def build(doc):

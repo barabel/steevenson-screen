@@ -2,13 +2,16 @@
 
 Читаются как есть: в твёрдые тела не превращаются и не чинятся, res/ не меняется.
 В позу висения (систему координат Датчика, см. params) ставятся через Placement:
-половины Корпуса свинчены, Вешалка зацеплена за Ушко.
+половины Корпуса свинчены, Вешалка зацеплена за Ушко. В сцену — ещё и
+переносом Датчика из Скелета.
 """
 from functools import cache
 from pathlib import Path
 
 import FreeCAD
 import Mesh
+
+from skeleton import params as skeleton
 
 from .params import SCREW_DEPTH
 
@@ -71,12 +74,14 @@ def placed(file_name, placement):
 
 
 def load(doc):
-    """Добавляет меши в doc как Mesh::Feature в позе висения, возвращает списком."""
+    """Добавляет меши в doc как Mesh::Feature в позе висения в Щите,
+    возвращает списком."""
+    shift = Placement(skeleton.sensor_shift(), Rotation())
     objects = []
     for name, label, file_name, placement in FILES:
         obj = doc.addObject("Mesh::Feature", name)
         obj.Label = label
-        obj.Mesh = placed(file_name, placement)
+        obj.Mesh = placed(file_name, shift.multiply(placement))
         objects.append(obj)
     return objects
 

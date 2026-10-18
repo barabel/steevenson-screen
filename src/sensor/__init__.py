@@ -1,6 +1,12 @@
-"""Датчик POK005L: тела и референсы сцены, проверки Датчика."""
+"""Датчик POK005L: тела и референсы сцены, проверки Датчика.
+
+Строится в своей системе координат (см. params), в Щит ставится переносом
+из Скелета: одним и тем же для Заглушки и мешей.
+"""
 import FreeCAD
 import Part
+
+from skeleton import params as skeleton
 
 from . import meshes
 from .params import (
@@ -25,7 +31,7 @@ PLUG = "Заглушка"
 
 
 def plug():
-    """Заглушка из параметров: диск Корпуса + Носик + Ушко, один solid."""
+    """Заглушка из параметров в Щите: диск Корпуса + Носик + Ушко, один solid."""
     case_radius = CASE_DIAMETER / 2
     case = Part.makeCylinder(case_radius, CASE_THICKNESS, V(CASE_X, 0, CASE_Z), X)
     # Носик начинается на оси диска: целиком врезан в диск, торчит из-под него
@@ -47,7 +53,8 @@ def plug():
         V(EAR_X, 0, 0),
         X,
     )
-    return case.fuse([nose, ear.cut(hole)]).removeSplitter()
+    shape = case.fuse([nose, ear.cut(hole)]).removeSplitter()
+    return shape.translated(skeleton.sensor_shift())
 
 
 MAX_GABARIT_DELTA = 0.5  # мм
@@ -55,6 +62,7 @@ MAX_GABARIT_DELTA = 0.5  # мм
 
 def gabarit(bodies):
     """Габарит Заглушки против габарита свинченных мешей Корпуса, по осям.
+    Меши сдвинуты в Щит тем же переносом, что и Заглушка.
 
     Нет Заглушки или она null — молчит: это ловят тест Прогона и checks.valid.
     """
@@ -62,7 +70,8 @@ def gabarit(bodies):
     if shape is None or shape.isNull():
         return []
     box = shape.BoundBox
-    case = meshes.case_box()
+    case = FreeCAD.BoundBox(meshes.case_box())  # копия: case_box в кэше
+    case.move(skeleton.sensor_shift())
     errors = []
     for axis in "XYZ":
         low = getattr(box, f"{axis}Min")

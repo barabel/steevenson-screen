@@ -13,12 +13,13 @@ from build import FCSTD, ROOT, VIEWS
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
+DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка"]
 
 
 class ProgonTest(unittest.TestCase):
     """Прогон целиком: build.cmd как подпроцесс."""
 
-    def test_progon_saves_fcstd_with_plug_meshes_and_three_views(self):
+    def test_progon_saves_fcstd_with_drafts_plug_meshes_and_three_views(self):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
 
@@ -33,6 +34,8 @@ class ProgonTest(unittest.TestCase):
         try:
             labels = [obj.Label for obj in doc.Objects]
             self.assertIn("Заглушка", labels)
+            for label in DRAFT_LABELS:
+                self.assertIn(label, labels)
             meshes = []
             for obj in doc.Objects:
                 if obj.isDerivedFrom("Mesh::Feature"):
