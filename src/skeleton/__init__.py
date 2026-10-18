@@ -18,6 +18,7 @@ LID = "Крышка"
 BOTTOM_DISH = "Нижняя Тарелка"
 FLOOR = "Дно"
 HOLDER = "Держатель"
+BRACKET = "Кронштейн"
 PLUG = "Заглушка"  # метка тела Датчика: пакет sensor не импортируем, см. params
 
 
@@ -176,14 +177,39 @@ def lid():
     return stud_holes(body).removeSplitter()
 
 
+def bracket():
+    """Кронштейн: пластина на плоскости Откоса и консоль над Точкой подвеса
+    на высоте проставки, за ось Щита на половину ширины консоли."""
+    jamb = params.jamb_x()
+    arm_top = params.SPACER_HEIGHT + params.BRACKET_ARM_THICKNESS
+    plate = Part.makeBox(
+        params.BRACKET_PLATE_THICKNESS,
+        params.BRACKET_PLATE_WIDTH,
+        params.BRACKET_PLATE_HEIGHT,
+        V(
+            jamb,
+            -params.BRACKET_PLATE_WIDTH / 2,
+            arm_top - params.BRACKET_PLATE_HEIGHT,
+        ),
+    )
+    arm = Part.makeBox(
+        params.bracket_reach() + params.BRACKET_ARM_WIDTH / 2,
+        params.BRACKET_ARM_WIDTH,
+        params.BRACKET_ARM_THICKNESS,
+        V(jamb, -params.BRACKET_ARM_WIDTH / 2, params.SPACER_HEIGHT),
+    )
+    return plate.fuse(arm).removeSplitter()
+
+
 def drafts():
-    """Черновики: метка → Shape, стопка сверху вниз, затем Дно и Держатель."""
+    """Черновики: метка → Shape, стопка сверху вниз, затем Дно, Держатель, Кронштейн."""
     shapes = {LID: lid()}
     for index in range(1, params.DISH_COUNT):
         shapes[f"Тарелка {index}"] = dish(index)
     shapes[BOTTOM_DISH] = bottom_dish()
     shapes[FLOOR] = floor()
     shapes[HOLDER] = holder()
+    shapes[BRACKET] = bracket()
     return shapes
 
 
@@ -213,7 +239,9 @@ CHECKS = [plug_gap]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):
-    """Добавляет Черновики в doc, возвращает (тела, референсы)."""
+    """Добавляет Черновики в doc, возвращает (тела, референсы).
+    Пишет в лог вылет Кронштейна: по нему Кронштейн покупают."""
+    print(f"вылет Кронштейна: {params.bracket_reach():g} мм", flush=True)
     objects = []
     for label, shape in drafts().items():
         obj = doc.addObject("Part::Feature", "Draft")
