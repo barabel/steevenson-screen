@@ -1,5 +1,5 @@
 @echo off
-rem build.cmd       - run the model build (Progon)
+rem build.cmd       - run the Progon
 rem build.cmd test  - run unittest tests
 rem FREECAD_CMD overrides the path to freecadcmd.exe.
 rem Keep this file ASCII-only: cmd breaks on UTF-8 text.
