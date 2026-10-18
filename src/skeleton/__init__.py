@@ -18,6 +18,7 @@ LID = "Крышка"
 BOTTOM_DISH = "Нижняя Тарелка"
 FLOOR = "Дно"
 HOLDER = "Держатель"
+PLUG = "Заглушка"  # метка тела Датчика: пакет sensor не импортируем, см. params
 
 
 def revolved(points):
@@ -186,7 +187,29 @@ def drafts():
     return shapes
 
 
-CHECKS = []  # bodies → список ошибок, как в checks.py
+def plug_gap(bodies):
+    """Воздух вокруг Заглушки: до каждого тела, кроме Держателя, не меньше
+    PLUG_MIN_GAP. Держатель держит Датчик и касается Ушка по задумке.
+
+    Нет Заглушки или она null — молчит, как проверка габарита Датчика.
+    """
+    shape = bodies.get(PLUG)
+    if shape is None or shape.isNull():
+        return []
+    errors = []
+    for name, body in bodies.items():
+        if name in (PLUG, HOLDER) or body.isNull():
+            continue
+        gap = shape.distToShape(body)[0]
+        if gap < params.PLUG_MIN_GAP:
+            errors.append(
+                f"{PLUG}: зазор до «{name}» {gap:.2f} мм,"
+                f" нужно не меньше {params.PLUG_MIN_GAP} мм",
+            )
+    return errors
+
+
+CHECKS = [plug_gap]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):
