@@ -4,6 +4,8 @@ Coin SoOffscreenRenderer внутри freecadcmd, геометрия — чер�
 Вверх — +Z. Главный вид смотрит вдоль +Y, вид слева — вдоль +X.
 Фронтальный разрез — плоскость XZ (y = 0) через ось Щита: тела обрезаны
 булевым срезом, ближняя к зрителю половина (y < 0) снята, срез закрашен.
+Референсы (меши) — полупрозрачные, своим цветом; в разрезе обрезаны той же
+плоскостью отсечения OpenGL, срез меша не закрашивается — он не замкнут.
 Камера ортографическая и одна на все виды: масштаб и центр одинаковы.
 """
 import FreeCAD
@@ -17,34 +19,46 @@ from pivy import coin  # noqa: E402 — после setupWithoutGUI
 SIZE = 800
 BODY_COLOR = (0.8, 0.8, 0.8)
 CUT_COLOR = (0.95, 0.55, 0.25)
+REFERENCE_COLOR = (0.25, 0.5, 0.9)
+REFERENCE_TRANSPARENCY = 0.5
 FRONT = FreeCAD.Vector(0, 1, 0)
 LEFT = FreeCAD.Vector(1, 0, 0)
 
 
-def render(bodies, out_dir):
+def render(bodies, references, out_dir):
     """Пишет front.png, left.png, section.png в out_dir, возвращает пути.
 
-    Тела без граней (null, пустые) пропускает: их ловят проверки.
+    bodies — Label → Shape, references — Label → Mesh.
+    Тела без граней (null, пустые) и пустые меши пропускает: тела ловят проверки.
     """
     shapes = []
     for shape in bodies.values():
         if not shape.isNull() and shape.Faces:
             shapes.append(shape)
-    if not shapes:
+    meshes = []
+    for mesh in references.values():
+        if mesh.CountFacets:
+            meshes.append(mesh)
+    boxes = []
+    for item in shapes + meshes:
+        boxes.append(item.BoundBox)
+    if not boxes:
         raise RuntimeError("нечего рисовать: ни у одного тела нет граней")
-    box = shapes[0].BoundBox
-    for shape in shapes[1:]:
-        box.add(shape.BoundBox)
+    box = boxes[0]
+    for item_box in boxes[1:]:
+        box.add(item_box)
     cut, cut_faces = section(shapes, box)
+    references_node = meshes_node(meshes)  # один на все виды: меши тяжёлые
     jobs = [
-        ("front.png", FRONT, shapes, []),
-        ("left.png", LEFT, shapes, []),
-        ("section.png", FRONT, cut, cut_faces),
+        ("front.png", FRONT, shapes, [], False),
+        ("left.png", LEFT, shapes, [], False),
+        ("section.png", FRONT, cut, cut_faces, True),
     ]
     paths = []
-    for name, direction, solid_shapes, cut_shapes in jobs:
+    for name, direction, solid_shapes, cut_shapes, clip in jobs:
         path = out_dir / name
         root = scene_graph(box, direction, solid_shapes, cut_shapes)
+        root.addChild(clipped(references_node) if clip else references_node)
         write_png(root, path)
         paths.append(path)
     return paths
@@ -116,8 +130,46 @@ def add_shapes(parent, shapes, color):
         parent.addChild(node)
 
 
+def clipped(child):
+    """child с отсечённой ближней половиной (y < 0), как у разреза."""
+    node = coin.SoSeparator()  # отсечение не выходит за узел
+    plane = coin.SoClipPlane()
+    plane.plane.setValue(coin.SbPlane(coin.SbVec3f(0, 1, 0), 0))  # оставляет y >= 0
+    node.addChild(plane)
+    node.addChild(child)
+    return node
+
+
+def meshes_node(meshes):
+    """Меши-референсы: полупрозрачные, цветом REFERENCE_COLOR."""
+    node = coin.SoSeparator()  # материал не выходит за узел
+    material = coin.SoMaterial()
+    material.diffuseColor.setValue(coin.SbColor(*REFERENCE_COLOR))
+    material.transparency.setValue(REFERENCE_TRANSPARENCY)
+    node.addChild(material)
+    for mesh in meshes:
+        points, facets = mesh.Topology
+        coords = coin.SoCoordinate3()
+        xyz = []
+        for point in points:
+            xyz.append((point.x, point.y, point.z))
+        coords.point.setValues(0, len(xyz), xyz)
+        node.addChild(coords)
+        index = []
+        for a, b, c in facets:
+            index += [a, b, c, -1]
+        faces = coin.SoIndexedFaceSet()
+        faces.coordIndex.setValues(0, len(index), index)
+        node.addChild(faces)
+    return node
+
+
 def write_png(root, path):
     renderer = coin.SoOffscreenRenderer(coin.SbViewportRegion(SIZE, SIZE))
+    # полупрозрачное рисуется после непрозрачного, с сортировкой по глубине
+    renderer.getGLRenderAction().setTransparencyType(
+        coin.SoGLRenderAction.SORTED_OBJECT_BLEND,
+    )
     renderer.setComponents(coin.SoOffscreenRenderer.RGB)
     renderer.setBackgroundColor(coin.SbColor(1, 1, 1))
     if not renderer.render(root):
