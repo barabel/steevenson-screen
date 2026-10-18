@@ -2,10 +2,14 @@ import unittest
 from unittest import mock
 
 import FreeCAD
+import Part
 
 import scene
+import skeleton
 from checks import check
 from skeleton import params
+
+V = FreeCAD.Vector
 
 
 def scene_errors():
@@ -45,3 +49,34 @@ class SkeletonTest(unittest.TestCase):
         reach = params.bracket_reach()
         with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
             self.assertLess(params.bracket_reach(), reach)
+
+
+def skeleton_errors(bodies):
+    """Подставные тела → проверки Скелета."""
+    errors = []
+    for check_fn in skeleton.CHECKS:
+        errors += check_fn(bodies)
+    return errors
+
+
+class SkeletonChecksTest(unittest.TestCase):
+    """Проверки Скелета на подставных телах: тела → список ошибок."""
+
+    def assertError(self, errors, *words):
+        for error in errors:
+            if all(word in error for word in words):
+                return
+        self.fail(f"нет ошибки со словами {words}: {errors}")
+
+    def test_holder_wider_than_bottom_dish_hole(self):
+        ring = Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5))
+        bodies = {
+            "Нижняя Тарелка": ring,
+            "Дно": Part.makeCylinder(25, 5),
+            "Держатель": Part.makeBox(70, 4, 10, V(-35, -2, 10)),
+            "Заглушка": Part.makeBox(10, 10, 10, V(-5, -5, 20)),
+        }
+
+        errors = skeleton_errors(bodies)
+
+        self.assertError(errors, "выход вниз", "Нижняя Тарелка")
