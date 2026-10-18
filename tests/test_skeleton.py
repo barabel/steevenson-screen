@@ -40,3 +40,8 @@ class SkeletonTest(unittest.TestCase):
                     errors = scene_errors()
 
                 self.assertEqual(errors, [])
+
+    def test_smaller_dish_gives_shorter_bracket_reach(self):
+        reach = params.bracket_reach()
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
+            self.assertLess(params.bracket_reach(), reach)

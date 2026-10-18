@@ -13,7 +13,7 @@ from build import FCSTD, ROOT, VIEWS
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
-DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка"]
+DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка", "Кронштейн"]
 
 
 class ProgonTest(unittest.TestCase):
@@ -30,6 +30,7 @@ class ProgonTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertRegex(result.stdout, r"вылет Кронштейна: \d+(\.\d+)? мм")
         doc = FreeCAD.openDocument(str(FCSTD))
         try:
             labels = [obj.Label for obj in doc.Objects]
