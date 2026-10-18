@@ -4,6 +4,7 @@
 В позу висения (систему координат Датчика, см. params) ставятся через Placement:
 половины Корпуса свинчены, Вешалка зацеплена за Ушко.
 """
+from functools import cache
 from pathlib import Path
 
 import FreeCAD
@@ -47,6 +48,8 @@ def screwed_top():
     return Placement(end, Rotation()).multiply(moved(TOP_AXIS + V(0, 0, TOP_END), flip))
 
 
+CASE_HALVES = ["CaseBottom", "CaseTop"]
+
 FILES = [
     ("CaseBottom", "Корпус, нижняя половина", "pok5L-btm.stl", moved(EYE, POSE)),
     (
@@ -69,3 +72,15 @@ def load(doc):
         obj.Placement = placement
         objects.append(obj)
     return objects
+
+
+@cache
+def case_box():
+    """Габарит свинченных половин Корпуса (без Вешалки) в позе висения."""
+    box = FreeCAD.BoundBox()
+    for name, label, file_name, placement in FILES:
+        if name in CASE_HALVES:
+            mesh = Mesh.Mesh(str(RES / file_name))
+            mesh.transform(placement.toMatrix())
+            box.add(mesh.BoundBox)
+    return box
