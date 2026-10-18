@@ -5,7 +5,8 @@ Coin SoOffscreenRenderer внутри freecadcmd, геометрия — чер�
 Фронтальный разрез — плоскость XZ (y = 0) через ось Щита: тела обрезаны
 булевым срезом, ближняя к зрителю половина (y < 0) снята, срез закрашен.
 Референсы (меши) — полупрозрачные, своим цветом; в разрезе обрезаны той же
-плоскостью отсечения OpenGL, срез меша не закрашивается — он не замкнут.
+плоскостью отсечения OpenGL, срез меша не закрашивается — он не замкнут;
+сечение меша плоскостью разреза рисуется линиями поверх среза тел.
 Камера ортографическая и одна на все виды: масштаб и центр одинаковы.
 """
 import FreeCAD
@@ -21,6 +22,9 @@ BODY_COLOR = (0.8, 0.8, 0.8)
 CUT_COLOR = (0.95, 0.55, 0.25)
 REFERENCE_COLOR = (0.25, 0.5, 0.9)
 REFERENCE_TRANSPARENCY = 0.5
+OUTLINE_COLOR = (0.1, 0.25, 0.7)  # сечение меша в разрезе: темнее REFERENCE_COLOR
+OUTLINE_WIDTH = 2
+OUTLINE_SHIFT = 0.1  # мм к зрителю: линии не тонут в срезе тел
 FRONT = FreeCAD.Vector(0, 1, 0)
 LEFT = FreeCAD.Vector(1, 0, 0)
 
@@ -58,7 +62,11 @@ def render(bodies, references, out_dir):
     for name, direction, solid_shapes, cut_shapes, clip in jobs:
         path = out_dir / name
         root = scene_graph(box, direction, solid_shapes, cut_shapes)
-        root.addChild(clipped(references_node) if clip else references_node)
+        if clip:
+            root.addChild(clipped(references_node))
+            root.addChild(outlines_node(meshes))
+        else:
+            root.addChild(references_node)
         write_png(root, path)
         paths.append(path)
     return paths
@@ -143,6 +151,11 @@ def clipped(child):
 def meshes_node(meshes):
     """Меши-референсы: полупрозрачные, цветом REFERENCE_COLOR."""
     node = coin.SoSeparator()  # материал не выходит за узел
+    # освещение с двух сторон: в разрезе видна изнанка граней, без него она серая
+    hints = coin.SoShapeHints()
+    hints.vertexOrdering = coin.SoShapeHints.COUNTERCLOCKWISE
+    hints.shapeType = coin.SoShapeHints.UNKNOWN_SHAPE_TYPE
+    node.addChild(hints)
     material = coin.SoMaterial()
     material.diffuseColor.setValue(coin.SbColor(*REFERENCE_COLOR))
     material.transparency.setValue(REFERENCE_TRANSPARENCY)
@@ -161,6 +174,38 @@ def meshes_node(meshes):
         faces = coin.SoIndexedFaceSet()
         faces.coordIndex.setValues(0, len(index), index)
         node.addChild(faces)
+    return node
+
+
+def outlines_node(meshes):
+    """Сечения мешей плоскостью разреза (y = 0) — линии поверх закрашенного
+    среза тел: иначе срез тел закрывает обрезанные меши."""
+    node = coin.SoSeparator()
+    light_model = coin.SoLightModel()
+    light_model.model = coin.SoLightModel.BASE_COLOR
+    node.addChild(light_model)
+    material = coin.SoMaterial()
+    material.diffuseColor.setValue(coin.SbColor(*OUTLINE_COLOR))
+    node.addChild(material)
+    style = coin.SoDrawStyle()
+    style.lineWidth = OUTLINE_WIDTH
+    node.addChild(style)
+    # чуть ближе к зрителю, чем срез тел
+    shift = coin.SoTranslation()
+    shift.translation.setValue(0, -OUTLINE_SHIFT, 0)
+    node.addChild(shift)
+    plane = (FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 1, 0))
+    for mesh in meshes:
+        for polyline in mesh.crossSections([plane])[0]:
+            xyz = []
+            for point in polyline:
+                xyz.append((point.x, point.y, point.z))
+            coords = coin.SoCoordinate3()
+            coords.point.setValues(0, len(xyz), xyz)
+            node.addChild(coords)
+            line = coin.SoLineSet()
+            line.numVertices.setValue(len(xyz))
+            node.addChild(line)
     return node
 
 
