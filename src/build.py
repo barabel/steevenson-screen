@@ -10,6 +10,7 @@ from pathlib import Path
 import FreeCAD
 
 import scene
+from checks import check
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -29,11 +30,6 @@ def save(doc):
 
 def render(bodies):
     """PNG-виды в dist/views — тикет 02."""
-
-
-def check(bodies):
-    """Проверки геометрии — тикет 03. Возвращает список ошибок, пусто = ок."""
-    return []
 
 
 def run():
