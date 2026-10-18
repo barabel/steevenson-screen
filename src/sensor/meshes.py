@@ -22,7 +22,7 @@ RES = Path(__file__).resolve().parents[2] / "res" / "pok005lv2"
 # наружной гранью на z = 0, ось резьбы — по z; у нижней Ушко в +y, Носик в −y.
 BOTTOM_AXIS = V(26.036, 116.354, 0)  # ось резьбы нижней половины
 BOTTOM_RIM = 9.6  # торец стенки нижней половины
-EYE = V(26.036, 146.354, 1.5)  # центр отверстия Ушка: Ø6, Ушко z 0..3
+EAR = V(26.036, 146.354, 1.5)  # центр отверстия Ушка: Ø6, Ушко z 0..3
 TOP_AXIS = V(51.448, 172.003, 0)  # ось резьбы верхней половины
 TOP_END = 13.0  # торец резьбы верхней половины
 # Точка Вешалки, которая приходит в центр отверстия Ушка: x — ось стержня,
@@ -45,21 +45,29 @@ def screwed_top():
     тот, при котором витки не пересекаются."""
     end = V(BOTTOM_AXIS.x, BOTTOM_AXIS.y, BOTTOM_RIM - SCREW_DEPTH)
     flip = Rotation(V(1, 0, 0), 180)
-    return Placement(end, Rotation()).multiply(moved(TOP_AXIS + V(0, 0, TOP_END), flip))
+    top_end = TOP_AXIS + V(0, 0, TOP_END)
+    return Placement(end, Rotation()).multiply(moved(top_end, flip))
 
 
 CASE_HALVES = ["CaseBottom", "CaseTop"]
 
 FILES = [
-    ("CaseBottom", "Корпус, нижняя половина", "pok5L-btm.stl", moved(EYE, POSE)),
+    ("CaseBottom", "Корпус, нижняя половина", "pok5L-btm.stl", moved(EAR, POSE)),
     (
         "CaseTop",
         "Корпус, верхняя половина",
         "pok5l-Top.stl",
-        moved(EYE, POSE).multiply(screwed_top()),
+        moved(EAR, POSE).multiply(screwed_top()),
     ),
     ("Hanger", "Вешалка", "pok5l-Hook.stl", moved(HANGER_REST, POSE)),
 ]
+
+
+def placed(file_name, placement):
+    """Меш из STL с Placement: Mesh::Feature берёт его себе в Placement."""
+    mesh = Mesh.Mesh(str(RES / file_name))
+    mesh.Placement = placement
+    return mesh
 
 
 def load(doc):
@@ -68,19 +76,19 @@ def load(doc):
     for name, label, file_name, placement in FILES:
         obj = doc.addObject("Mesh::Feature", name)
         obj.Label = label
-        obj.Mesh = Mesh.Mesh(str(RES / file_name))
-        obj.Placement = placement
+        obj.Mesh = placed(file_name, placement)
         objects.append(obj)
     return objects
 
 
 @cache
 def case_box():
-    """Габарит свинченных половин Корпуса (без Вешалки) в позе висения."""
+    """Габарит свинченных половин Корпуса (без Вешалки) в позе висения.
+
+    Без doc: проверке габарита doc не передаётся.
+    """
     box = FreeCAD.BoundBox()
-    for name, label, file_name, placement in FILES:
+    for name, _, file_name, placement in FILES:
         if name in CASE_HALVES:
-            mesh = Mesh.Mesh(str(RES / file_name))
-            mesh.transform(placement.toMatrix())
-            box.add(mesh.BoundBox)
+            box.add(placed(file_name, placement).BoundBox)
     return box
