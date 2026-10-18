@@ -14,6 +14,7 @@ import scene
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 FCSTD = DIST / "shield.FCStd"
+VIEWS = DIST / "views"
 
 
 def log(message):
@@ -28,7 +29,16 @@ def save(doc):
 
 
 def render(bodies):
-    """PNG-виды в dist/views — тикет 02."""
+    """PNG-виды в dist/views: главный, слева, фронтальный разрез. Без окна."""
+    VIEWS.mkdir(parents=True, exist_ok=True)
+    try:
+        import views  # тянет FreeCADGui и pivy — только когда рендерим
+
+        paths = views.render(bodies, VIEWS)
+    except Exception as error:
+        raise RuntimeError(f"рендер видов не удался: {error}") from error
+    for path in paths:
+        log(f"вид: {path}")
 
 
 def check(bodies):
