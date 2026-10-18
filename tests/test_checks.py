@@ -43,11 +43,23 @@ class ChecksTest(unittest.TestCase):
 
         self.assertError(errors, "Пустое", "объём")
 
+    def test_flat_solid(self):
+        square = Part.Face(Part.makePolygon(
+            [V(0, 0, 0), V(10, 0, 0), V(10, 10, 0), V(0, 10, 0), V(0, 0, 0)],
+        ))
+        # один solid из двух совпавших граней: isValid проходит, объём 0
+        flat = Part.Solid(Part.Shell([square, square.copy()]))
+
+        errors = check({"Плоское": flat})
+
+        self.assertError(errors, "Плоское", "объём")
+
+    def test_null_body_beside_good_one(self):
+        errors = check({"Целое": box(), "Нулевое": Part.Shape()})
+
+        self.assertError(errors, "Нулевое", "isValid")
+
     def test_intersecting_pair(self):
         errors = check({"Левый": box(0), "Правый": box(5)})
 
         self.assertError(errors, "Левый", "Правый", "пересечение")
-
-
-if __name__ == "__main__":
-    unittest.main()

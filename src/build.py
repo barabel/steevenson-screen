@@ -30,16 +30,22 @@ def save(doc):
 
 
 def render(bodies):
-    """PNG-виды в dist/views: главный, слева, фронтальный разрез. Без окна."""
+    """PNG-виды в dist/views: главный, слева, фронтальный разрез. Без окна.
+
+    Сбой не роняет Прогон: возвращает текст ошибки, проверки идут дальше.
+    """
     VIEWS.mkdir(parents=True, exist_ok=True)
     try:
         import views  # тянет FreeCADGui и pivy — только когда рендерим
 
         paths = views.render(bodies, VIEWS)
     except Exception as error:
-        raise RuntimeError(f"рендер видов не удался: {error}") from error
+        traceback.print_exc()
+        sys.stderr.flush()
+        return f"рендер видов не удался: {error}"
     for path in paths:
         log(f"вид: {path}")
+    return None
 
 
 def run():
@@ -51,8 +57,11 @@ def run():
         bodies[obj.Label] = obj.Shape
 
     save(doc)
-    render(bodies)
-    errors = check(bodies)
+    errors = []
+    render_error = render(bodies)
+    if render_error:
+        errors.append(render_error)
+    errors += check(bodies)
 
     for error in errors:
         log(f"ОШИБКА: {error}")

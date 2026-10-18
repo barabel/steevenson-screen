@@ -22,8 +22,16 @@ LEFT = FreeCAD.Vector(1, 0, 0)
 
 
 def render(bodies, out_dir):
-    """Пишет front.png, left.png, section.png в out_dir, возвращает пути."""
-    shapes = list(bodies.values())
+    """Пишет front.png, left.png, section.png в out_dir, возвращает пути.
+
+    Тела без граней (null, пустые) пропускает: их ловят проверки.
+    """
+    shapes = []
+    for shape in bodies.values():
+        if not shape.isNull() and shape.Faces:
+            shapes.append(shape)
+    if not shapes:
+        raise RuntimeError("нечего рисовать: ни у одного тела нет граней")
     box = shapes[0].BoundBox
     for shape in shapes[1:]:
         box.add(shape.BoundBox)
