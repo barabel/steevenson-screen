@@ -55,6 +55,11 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Заглушка", "зазор", "Тарелка 3", "5.00 мм")
 
+    def test_body_at_min_gap_within_float_noise_is_not_a_gap_error(self):
+        errors = skeleton_errors({"Заглушка": box(0), "Дно": box(20 - 1e-6)})
+
+        self.assertEqual(errors, [])
+
     def test_holder_touching_plug_is_not_a_gap_error(self):
         errors = skeleton_errors({"Заглушка": box(0), "Держатель": box(10)})
 

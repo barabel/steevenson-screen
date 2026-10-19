@@ -215,11 +215,23 @@ def drafts():
     return shapes
 
 
-def plug_gap(bodies):
-    """Воздух вокруг Заглушки: до каждого тела, кроме Держателя, не меньше
-    PLUG_MIN_GAP. Держатель держит Датчик и касается Ушка по задумке.
+def gap_error(name, shape, other, other_shape, minimum):
+    """Ошибка зазора от тела name до тела other меньше minimum, иначе None.
 
-    Нет Заглушки или она null — молчит, как проверка габарита Датчика.
+    Зазор сравнивается с точностью, с которой пишется, — 0.01 мм: зазор,
+    ровный по построению, не падает от шума float.
+    """
+    gap = round(shape.distToShape(other_shape)[0], 2)
+    if gap < minimum:
+        return f"{name}: зазор до {other} ≥ {minimum:g} мм — {gap:.2f} мм"
+    return None
+
+
+def plug_gap(bodies):
+    """Воздух вокруг Заглушки: до каждого тела, кроме Держателя, не меньше PLUG_MIN_GAP.
+
+    Держатель держит Датчик и касается Ушка по задумке. Нет Заглушки или она
+    null — молчит, как проверка габарита Датчика.
     """
     shape = bodies.get(PLUG)
     if shape is None or shape.isNull():
@@ -228,12 +240,9 @@ def plug_gap(bodies):
     for name, body in bodies.items():
         if name in (PLUG, HOLDER) or body.isNull():
             continue
-        gap = shape.distToShape(body)[0]
-        if gap < params.PLUG_MIN_GAP:
-            errors.append(
-                f"{PLUG}: зазор до «{name}» {gap:.2f} мм,"
-                f" нужно не меньше {params.PLUG_MIN_GAP} мм",
-            )
+        error = gap_error(PLUG, shape, name, body, params.PLUG_MIN_GAP)
+        if error:
+            errors.append(error)
     return errors
 
 
