@@ -2,3 +2,4 @@
 .claude/
 dist/
 __pycache__/
+print/*.stl
