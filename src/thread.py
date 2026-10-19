@@ -72,6 +72,9 @@ def sweep(profile, inner, length):
 def external(diameter, length, clearance):
     """Наружная резьба: сплошной стержень с витками, вход с фаской сверху.
 
+    Нижний торец тоже с фаской: на столе «слоновья нога» первого слоя
+    не попадает в резьбу.
+
     diameter — Ø по вершинам без зазора. Зуб и сердечник сжаты на clearance
     по нормали к профилю: щель до номинальной внутренней одинакова на
     вершине, впадине и боковых сторонах.
@@ -101,7 +104,8 @@ def external(diameter, length, clearance):
     crest = major - clearance
     envelope = revolved([
         (0, 0),
-        (wide, 0),
+        (crest - chamfer, 0),
+        (wide, chamfer + (wide - crest)),
         (wide, length - chamfer - (wide - crest)),
         (crest - chamfer, length),
         (0, length),

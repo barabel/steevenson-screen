@@ -16,8 +16,8 @@ VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
 DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
 DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
-PROBE_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.4"]
-PROBE_STL_NAMES = ["ring-dish.stl", "ring-floor-0.4.stl"]
+PROBE_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.3", "Кольцо Дна 0.4", "Кольцо Дна 0.5"]
+PROBE_STL_NAMES = ["ring-dish.stl", "ring-floor-0.3.stl", "ring-floor-0.4.stl", "ring-floor-0.5.stl"]
 
 
 class ProgonTest(unittest.TestCase):

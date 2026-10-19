@@ -2,7 +2,10 @@
 
 В сцену Щита не входит: Прогон строит Пробник в отдельный документ.
 Кольца — в натуральную величину резьбы Скелета, ось — Z, низ на z = 0,
-как в собранном Щите: вход кольца Тарелки снизу, кольца Дна сверху.
+как в собранном Щите: вход кольца Тарелки снизу, кольца Дна сверху. Это
+и ориентация печати: кольцо Тарелки — входом на стол, кольцо Дна —
+донышком. Раскладка — сетка 2×2 в XY, только сдвиги: поворот вокруг Z
+сбил бы фазу спирали в проверке пары.
 """
 import FreeCAD
 import Part
@@ -34,10 +37,32 @@ def dish_ring():
     return blank.cut(thread.internal(diameter, length))
 
 
-def floor_ring(clearance):
+def notches(count):
+    """count насечек на донышке кольца Дна, сверху, вглубь на NOTCH_DEPTH.
+
+    Параллельные пазы вдоль Y, посередине донышка: далеко от стенки, резьбу
+    не задевают; видны, если заглянуть в кольцо.
+    """
+    slots = []
+    for index in range(count):
+        x = (index - (count - 1) / 2) * params.NOTCH_STEP
+        slots.append(Part.makeBox(
+            params.NOTCH_WIDTH,
+            params.NOTCH_LENGTH,
+            params.NOTCH_DEPTH + 1,
+            V(
+                x - params.NOTCH_WIDTH / 2,
+                -params.NOTCH_LENGTH / 2,
+                params.FLOOR_BOTTOM - params.NOTCH_DEPTH,
+            ),
+        ))
+    return Part.makeCompound(slots)
+
+
+def floor_ring(clearance, count):
     """Кольцо Дна: наружная резьба с зазором clearance, донышко снизу.
 
-    Стенка за впадинами — как у кольца Тарелки.
+    Стенка за впадинами — как у кольца Тарелки. На донышке count насечек.
     """
     diameter = skeleton_params.THREAD_DIAMETER
     length = skeleton_params.THREAD_LENGTH
@@ -48,18 +73,24 @@ def floor_ring(clearance):
         V(0, 0, params.FLOOR_BOTTOM),
         Z,
     )
-    return thread.external(diameter, length, clearance).cut(bore)
+    return thread.external(diameter, length, clearance).cut([bore, notches(count)])
 
 
 def rings():
-    """Кольца в раскладке: метка → Shape. Кольцо Тарелки в начале, кольца Дна — рядом по X."""
-    radius = skeleton_params.THREAD_DIAMETER / 2
+    """Кольца в раскладке: метка → Shape.
+
+    Сетка в 2 столбца, ячейка — Ø кольца Тарелки и отступ. Кольцо Тарелки
+    первое, за ним кольца Дна в порядке набора; у n-го кольца Дна n насечек.
+    """
+    cell = skeleton_params.THREAD_DIAMETER + 2 * skeleton_params.THREAD_RING_WALL + params.SPACING
     shapes = {DISH_RING: dish_ring()}
-    x = radius + skeleton_params.THREAD_RING_WALL + params.SPACING + radius
-    for clearance in params.CLEARANCES:
-        shapes[floor_ring_label(clearance)] = floor_ring(clearance).translated(V(x, 0, 0))
-        x += 2 * radius + params.SPACING
-    return shapes
+    for index, clearance in enumerate(params.CLEARANCES, start=1):
+        shapes[floor_ring_label(clearance)] = floor_ring(clearance, index)
+    layout = {}
+    for index, (label, shape) in enumerate(shapes.items()):
+        column, row = index % 2, index // 2
+        layout[label] = shape.translated(V(column * cell, -row * cell, 0))
+    return layout
 
 
 def stl_names():
@@ -73,15 +104,18 @@ def stl_names():
 def screwed_in(shape, into):
     """shape, поставленная соосно в into на ту же высоту.
 
-    Сдвиг по оси кратен шагу: фаза спирали не меняется, зуб наружной
-    резьбы остаётся посередине впадины.
+    Соосно — по сдвигу раскладки (Placement), а не по центру габарита:
+    габарит врёт на ~1e-7 мм, и на почти соосных кольцах common молча
+    отдаёт пустоту. Сдвиг по оси кратен шагу: фаза спирали не меняется,
+    зуб наружной резьбы остаётся посередине впадины.
     """
+    offset = into.Placement.Base - shape.Placement.Base
     box = shape.optimalBoundingBox()
     target = into.optimalBoundingBox()
     pitch = skeleton_params.THREAD_PITCH
     return shape.translated(V(
-        target.Center.x - box.Center.x,
-        target.Center.y - box.Center.y,
+        offset.x,
+        offset.y,
         round((target.ZMin - box.ZMin) / pitch) * pitch,
     ))
 
@@ -116,7 +150,24 @@ def pair(bodies):
     return errors
 
 
-CHECKS = [pair]  # bodies → список ошибок, как в checks.py
+def bed(bodies):
+    """Раскладка на столе: габарит по X, Y не больше стола, по Z не выше."""
+    shapes = []
+    for shape in bodies.values():
+        if not shape.isNull():
+            shapes.append(shape)
+    if not shapes:
+        return []
+    box = Part.makeCompound(shapes).optimalBoundingBox()
+    size = (box.XLength, box.YLength, box.ZMax)
+    if all(length <= limit for length, limit in zip(size, params.BED)):
+        return []
+    layout = " × ".join(f"{length:.1f}" for length in size)
+    table = " × ".join(f"{limit:g}" for limit in params.BED)
+    return [f"стол: габарит раскладки {layout} мм — стол {table} мм"]
+
+
+CHECKS = [pair, bed]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):
