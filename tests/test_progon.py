@@ -10,15 +10,18 @@ import Part
 
 import build
 from build import FCSTD, ROOT, VIEWS
+from skeleton import params
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
+DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
+DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
 
 
 class ProgonTest(unittest.TestCase):
     """Прогон целиком: build.cmd как подпроцесс."""
 
-    def test_progon_saves_fcstd_with_plug_meshes_and_three_views(self):
+    def test_progon_saves_fcstd_with_drafts_plug_meshes_and_three_views(self):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
 
@@ -29,10 +32,13 @@ class ProgonTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertRegex(result.stdout, r"вылет Кронштейна: \d+(\.\d+)? мм")
         doc = FreeCAD.openDocument(str(FCSTD))
         try:
             labels = [obj.Label for obj in doc.Objects]
             self.assertIn("Заглушка", labels)
+            for label in DRAFT_LABELS:
+                self.assertIn(label, labels)
             meshes = []
             for obj in doc.Objects:
                 if obj.isDerivedFrom("Mesh::Feature"):

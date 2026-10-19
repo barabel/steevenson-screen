@@ -1,4 +1,7 @@
+import importlib
+import sys
 import unittest
+from unittest import mock
 
 import FreeCAD
 import Part
@@ -48,3 +51,13 @@ class SensorTest(unittest.TestCase):
                 errors = sensor_check({"Заглушка": grown(sensor.plug(), axis)})
 
                 self.assertError(errors, "Заглушка", "габарит", f"по {axis}", "мм")
+
+    def test_sensor_package_imports_without_skeleton(self):
+        with mock.patch.dict(sys.modules):
+            for name in list(sys.modules):
+                if name.split(".")[0] in ("sensor", "skeleton"):
+                    del sys.modules[name]
+
+            importlib.import_module("sensor")
+
+            self.assertFalse("skeleton" in sys.modules, "sensor импортирует skeleton")
