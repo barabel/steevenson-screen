@@ -65,6 +65,14 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_lid_5_mm_above_holder_breaks_hook_gap(self):
+        errors = skeleton_errors({
+            "Держатель": box(0),
+            "Крышка": Part.makeBox(10, 10, 10, V(0, 0, 15)),
+        })
+
+        self.assertError(errors, "Держатель", "зазор", "Крышка", "5.00 мм")
+
     def test_two_dishes_fewer_break_plug_gap(self):
         with mock.patch.dict(vars(params), {"DISH_COUNT": params.DISH_COUNT - 2}):
             errors = scene_errors()

@@ -246,6 +246,22 @@ def plug_gap(bodies):
     return errors
 
 
+def hook_gap(bodies):
+    """Над Крючком: от Держателя до Крышки не меньше HOOK_TO_LID_GAP.
+
+    Верх Держателя — верх Крючка. Нет Держателя или Крышки или кто-то из них
+    null — молчит.
+    """
+    holder_shape = bodies.get(HOLDER)
+    lid_shape = bodies.get(LID)
+    if holder_shape is None or lid_shape is None:
+        return []
+    if holder_shape.isNull() or lid_shape.isNull():
+        return []
+    error = gap_error(HOLDER, holder_shape, LID, lid_shape, params.HOOK_TO_LID_GAP)
+    return [error] if error else []
+
+
 def axis_radius(shape):
     """Наибольшее расстояние тела от оси Щита, по точкам триангуляции."""
     points, _ = shape.tessellate(0.01)
@@ -292,7 +308,7 @@ def down_exit(bodies):
     return errors
 
 
-CHECKS = [plug_gap, down_exit]  # bodies → список ошибок, как в checks.py
+CHECKS = [plug_gap, hook_gap, down_exit]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):
