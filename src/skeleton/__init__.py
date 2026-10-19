@@ -23,6 +23,8 @@ HOLDER = "Держатель"
 BRACKET = "Кронштейн"
 PLUG = "Заглушка"  # метка тела Датчика: пакет sensor не импортируем, см. params
 
+BEYOND = 1  # мм за габаритом тела: сквозное отверстие и путь выхода не кончаются на его грани
+
 
 def revolved(points):
     """Тело вращения вокруг оси Щита: замкнутый контур (r, z) в плоскости XZ."""
@@ -81,18 +83,23 @@ def standoffs(top):
     return bosses
 
 
-def stud_holes(shape):
-    """shape с отверстиями под Шпильки по осям Стоек, насквозь по Z."""
+def stud_rods(shape):
+    """Цилиндры отверстий под Шпильки по осям Стоек, по Z насквозь через shape."""
     box = shape.BoundBox
-    holes = []
+    rods = []
     for center in standoff_centers():
-        holes.append(Part.makeCylinder(
+        rods.append(Part.makeCylinder(
             params.STUD_HOLE_DIAMETER / 2,
-            box.ZLength + 2,
-            center + V(0, 0, box.ZMin - 1),
+            box.ZLength + 2 * BEYOND,
+            center + V(0, 0, box.ZMin - BEYOND),
             Z,
         ))
-    return shape.cut(holes)
+    return rods
+
+
+def stud_holes(shape):
+    """shape с отверстиями под Шпильки по осям Стоек, насквозь по Z."""
+    return shape.cut(stud_rods(shape))
 
 
 def dish(index):
@@ -262,6 +269,25 @@ def hook_gap(bodies):
     return [error] if error else []
 
 
+def standoffs_ring(bodies):
+    """Стойки Нижней Тарелки с отверстиями под Шпильки не задевают резьбовое кольцо.
+
+    Стойки и кольцо слиты в одно тело, проверка пересечений их не видит:
+    тела строятся отдельно из параметров Скелета, bodies не нужны.
+    """
+    ring = thread_ring()
+    top = params.dish_top(params.DISH_COUNT)
+    volume = 0
+    for shape in standoffs(top) + stud_rods(ring):
+        volume += ring.common(shape).Volume
+    if volume > MAX_OVERLAP:
+        return [
+            f"{BOTTOM_DISH}: Стойки и резьбовое кольцо не пересекаются"
+            f" — пересечение {volume:.2f} мм³",
+        ]
+    return []
+
+
 def axis_radius(shape):
     """Наибольшее расстояние тела от оси Щита, по точкам триангуляции."""
     points, _ = shape.tessellate(0.01)
@@ -308,7 +334,7 @@ def down_exit(bodies):
     return errors
 
 
-CHECKS = [plug_gap, hook_gap, down_exit]  # bodies → список ошибок, как в checks.py
+CHECKS = [plug_gap, hook_gap, standoffs_ring, down_exit]  # bodies → список ошибок, как в checks.py
 
 
 def build(doc):

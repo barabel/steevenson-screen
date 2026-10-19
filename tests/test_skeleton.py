@@ -79,6 +79,12 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Заглушка", "зазор", "мм")
 
+    def test_standoffs_over_thread_ring_break_bottom_dish(self):
+        with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 46}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
+
     def test_skeleton_from_params_has_no_errors(self):
         cases = {
             "по умолчанию": {},
