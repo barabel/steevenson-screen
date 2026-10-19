@@ -9,27 +9,35 @@ import FreeCAD
 import Part
 
 import build
-from build import FCSTD, ROOT, VIEWS
+from build import FCSTD, PROBE_FCSTD, PROBE_STL, ROOT, VIEWS
 from skeleton import params
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
 DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
 DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
+PROBE_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.4"]
+PROBE_STL_NAMES = ["ring-dish.stl", "ring-floor-0.4.stl"]
 
 
 class ProgonTest(unittest.TestCase):
-    """Прогон целиком: build.cmd как подпроцесс."""
+    """Прогон целиком: build.cmd как подпроцесс, один на все тесты класса."""
 
-    def test_progon_saves_fcstd_with_drafts_plug_meshes_and_three_views(self):
+    @classmethod
+    def setUpClass(cls):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
+        PROBE_FCSTD.unlink(missing_ok=True)
+        shutil.rmtree(PROBE_STL, ignore_errors=True)
 
-        result = subprocess.run(
+        cls.result = subprocess.run(
             ["cmd", "/d", "/c", str(ROOT / "build.cmd")],
             capture_output=True,
             encoding="utf-8",
         )
+
+    def test_progon_saves_fcstd_with_drafts_plug_meshes_and_three_views(self):
+        result = self.result
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertRegex(result.stdout, r"вылет Кронштейна: \d+(\.\d+)? мм")
@@ -50,6 +58,22 @@ class ProgonTest(unittest.TestCase):
             png = VIEWS / name
             self.assertTrue(png.is_file(), f"нет {png}")
             self.assertGreater(png.stat().st_size, 0, f"пустой {png}")
+
+    def test_progon_saves_probe_fcstd_with_rings_and_stl_of_each(self):
+        result = self.result
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        doc = FreeCAD.openDocument(str(PROBE_FCSTD))
+        try:
+            labels = [obj.Label for obj in doc.Objects]
+            for label in PROBE_LABELS:
+                self.assertIn(label, labels)
+        finally:
+            FreeCAD.closeDocument(doc.Name)
+        for name in PROBE_STL_NAMES:
+            stl = PROBE_STL / name
+            self.assertTrue(stl.is_file(), f"нет {stl}")
+            self.assertGreater(stl.stat().st_size, 0, f"пустой {stl}")
 
 
 def scene_of(shapes):
