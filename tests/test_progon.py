@@ -10,10 +10,12 @@ import Part
 
 import build
 from build import FCSTD, ROOT, VIEWS
+from skeleton import params
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
-DRAFT_LABELS = ["Крышка", "Тарелка 1", "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
+DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
+DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
 
 
 class ProgonTest(unittest.TestCase):
