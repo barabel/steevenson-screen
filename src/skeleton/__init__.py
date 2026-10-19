@@ -24,7 +24,8 @@ FLOOR = "Дно"
 HOLDER = "Держатель"
 BRACKET = "Кронштейн"
 
-BEYOND = 1  # мм за габаритом тела: сквозное отверстие и путь выхода не кончаются на его грани
+# мм за габаритом тела: сквозное отверстие и путь выхода не кончаются на грани
+BEYOND = 1
 
 
 def revolved(points):
@@ -36,8 +37,10 @@ def revolved(points):
 
 
 def band(top, height):
-    """Кольцевой слой конуса Тарелки: от поверхности с краем отверстия
-    на высоте top вниз на height по вертикали."""
+    """Кольцевой слой конуса Тарелки.
+
+    От поверхности с краем отверстия на высоте top вниз на height по вертикали.
+    """
     hole = params.DISH_HOLE_DIAMETER / 2
     outer = params.DISH_DIAMETER / 2
     rise = params.DISH_RISE
@@ -65,23 +68,23 @@ def standoff_centers():
 def standoffs(top):
     """Стойки Тарелки: от её стенки вверх до нижней поверхности соседней.
 
-    Цилиндр бобышки обрезан слоем между нижними поверхностями двух Тарелок:
+    Цилиндр Стойки обрезан слоем между нижними поверхностями двух Тарелок:
     низ — по своей стенке, верх — по соседней, касание без пересечения.
     """
     wall = params.dish_wall_height()
     pitch = params.DISH_PITCH
     span = band(top + pitch - wall, pitch)
     height = params.DISH_RISE + wall + pitch
-    bosses = []
+    result = []
     for center in standoff_centers():
-        boss = Part.makeCylinder(
+        cylinder = Part.makeCylinder(
             params.STANDOFF_DIAMETER / 2,
             height,
             center + V(0, 0, top - params.DISH_RISE - wall),
             Z,
         )
-        bosses.append(boss.common(span))
-    return bosses
+        result.append(cylinder.common(span))
+    return result
 
 
 def stud_rods(shape):
@@ -187,8 +190,10 @@ def lid():
 
 
 def bracket():
-    """Кронштейн: пластина на плоскости Откоса и консоль над Точкой подвеса
-    на высоте проставки, за ось Щита на половину ширины консоли."""
+    """Кронштейн: пластина на плоскости Откоса и консоль над Точкой подвеса.
+
+    Консоль — на высоте проставки, за ось Щита на половину своей ширины.
+    """
     jamb = params.jamb_x()
     arm_top = params.SPACER_HEIGHT + params.BRACKET_ARM_THICKNESS
     plate = Part.makeBox(
@@ -288,9 +293,12 @@ def standoffs_ring(bodies):
     return []
 
 
+TESSELLATION = 0.01  # мм, допуск триангуляции: радиус тела точнее зазоров
+
+
 def axis_radius(shape):
     """Наибольшее расстояние тела от оси Щита, по точкам триангуляции."""
-    points, _ = shape.tessellate(0.01)
+    points, _ = shape.tessellate(TESSELLATION)
     radii = []
     for point in points:
         radii.append(math.hypot(point.x, point.y))
@@ -298,13 +306,13 @@ def axis_radius(shape):
 
 
 def down_exit(bodies):
-    """Выход вниз: Дно, Держатель и Заглушка уходят вниз из Щита, ничего
-    не задевая, — так меняют батарейку, не снимая Щит.
+    """Выход вниз: Дно, Держатель и Заглушка уходят вниз из Щита, ничего не задевая.
 
-    Проверка по радиусам: путь тела — цилиндр вокруг оси Щита радиусом его
-    дальней от оси точки, от верха тела до низа Щита. Тело Щита в этом
-    цилиндре — задевание. Цилиндр шире настоящего пути, поэтому проверка
-    задевание не пропустит, но может поднять ложное у тела не на оси.
+    Так меняют батарейку, не снимая Щит. Проверка по радиусам: путь тела —
+    цилиндр вокруг оси Щита радиусом его дальней от оси точки, от верха тела
+    до низа Щита. Тело Щита в этом цилиндре — задевание. Цилиндр шире
+    настоящего пути, поэтому проверка задевание не пропустит, но может
+    поднять ложное у тела не на оси.
 
     Нет Дна, Держателя или Заглушки или кто-то из них null — молчит.
     """
@@ -317,7 +325,7 @@ def down_exit(bodies):
     for name, shape in bodies.items():
         if name not in leaving and not shape.isNull():
             staying[name] = shape
-            bottom = min(bottom, shape.BoundBox.ZMin - 1)
+            bottom = min(bottom, shape.BoundBox.ZMin - BEYOND)
     errors = []
     for name in leaving:
         shape = bodies[name]
@@ -334,12 +342,15 @@ def down_exit(bodies):
     return errors
 
 
-CHECKS = [plug_gap, hook_gap, standoffs_ring, down_exit]  # bodies → список ошибок, как в checks.py
+# bodies → список ошибок, как в checks.py
+CHECKS = [plug_gap, hook_gap, standoffs_ring, down_exit]
 
 
 def build(doc):
     """Добавляет Черновики в doc, возвращает (тела, референсы).
-    Пишет в лог вылет Кронштейна: по нему Кронштейн покупают."""
+
+    Пишет в лог вылет Кронштейна: по нему Кронштейн покупают.
+    """
     print(f"вылет Кронштейна: {params.bracket_reach():g} мм", flush=True)
     objects = []
     for label, shape in drafts().items():

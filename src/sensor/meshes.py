@@ -72,8 +72,10 @@ def placed(file_name, placement):
 
 
 def load(doc, shift):
-    """Добавляет меши в doc как Mesh::Feature в позе висения в Щите,
-    сдвинутые на вектор shift, возвращает списком."""
+    """Добавляет меши в doc как Mesh::Feature в позе висения в Щите, возвращает списком.
+
+    shift — перенос Датчика в Щит из Скелета.
+    """
     offset = Placement(shift, Rotation())
     objects = []
     for name, label, file_name, placement in FILES:

@@ -16,19 +16,19 @@ from sensor import params as sensor_params  # лист: сам ничего не
 
 # Тарелка: коническая оболочка, наружный край внизу, край отверстия наверху.
 # Профиль — от SanglierLab (Gill-экран).
-DISH_DIAMETER = 140  # наружный Ø; больше ориентира ТЗ 110–120: Датчик — шайба шириной 50
+DISH_DIAMETER = 140  # наружный Ø; больше ориентира ТЗ 110–120: Корпус Датчика — диск Ø50
 DISH_HOLE_DIAMETER = 76  # Датчик с Держателем в плане — радиус 27.6, плюс зазор 10
 DISH_PITCH = 16  # шаг стопки по Z, SanglierLab
 DISH_RISE = 23  # подъём конуса от наружного края до края отверстия, SanglierLab
 DISH_WALL = 2  # толщина стенки по нормали к конусу
 DISH_COUNT = 6  # N: Тарелки вместе с Нижней, без Крышки; по высоте Датчика
 
-# Стойки: бобышки заодно с Тарелкой, от неё вверх до соседней Тарелки;
+# Стойки: выступы заодно с Тарелкой, от неё вверх до соседней Тарелки;
 # сквозь все Тарелки и Крышку — отверстие под Шпильку.
 STANDOFF_COUNT = 4
 STANDOFF_RADIUS = 54  # ось Стойки от оси Щита: снаружи резьбового кольца (49) с местом под гайку M4
 STANDOFF_ANGLE = 45  # градусы от +X до первой Стойки: ни одна не смотрит на Откос
-STANDOFF_DIAMETER = 10  # бобышка
+STANDOFF_DIAMETER = 10  # Ø Стойки
 STUD_HOLE_DIAMETER = 4.5  # под Шпильку M4, зазор 0.25 на сторону
 
 # Стык Крышка↔Кронштейн: болт M6 по оси Щита через Точку подвеса.
@@ -70,9 +70,14 @@ HOOK_TO_LID_GAP = 10  # верх Крючка под Крышкой, не мен
 
 # Выводимые параметры.
 
+def dish_run():
+    """Ширина конуса Тарелки в плане: от края отверстия до наружного края."""
+    return (DISH_DIAMETER - DISH_HOLE_DIAMETER) / 2
+
+
 def dish_wall_height():
     """Толщина стенки Тарелки по вертикали: DISH_WALL по нормали к конусу."""
-    run = (DISH_DIAMETER - DISH_HOLE_DIAMETER) / 2
+    run = dish_run()
     return DISH_WALL * math.hypot(run, DISH_RISE) / run
 
 
@@ -88,9 +93,9 @@ def stack_height():
 
 def dish_bottom_at(r):
     """Z нижней поверхности конуса Нижней Тарелки на радиусе r."""
-    run = (DISH_DIAMETER - DISH_HOLE_DIAMETER) / 2
     hole = DISH_HOLE_DIAMETER / 2
-    return dish_top(DISH_COUNT) - dish_wall_height() - (r - hole) * DISH_RISE / run
+    drop = (r - hole) * DISH_RISE / dish_run()
+    return dish_top(DISH_COUNT) - dish_wall_height() - drop
 
 
 def floor_top():
