@@ -11,8 +11,6 @@ from pathlib import Path
 import FreeCAD
 import Mesh
 
-from skeleton import params as skeleton
-
 from .params import SCREW_DEPTH
 
 V = FreeCAD.Vector
@@ -73,15 +71,15 @@ def placed(file_name, placement):
     return mesh
 
 
-def load(doc):
+def load(doc, shift):
     """Добавляет меши в doc как Mesh::Feature в позе висения в Щите,
-    возвращает списком."""
-    shift = Placement(skeleton.sensor_shift(), Rotation())
+    сдвинутые на вектор shift, возвращает списком."""
+    offset = Placement(shift, Rotation())
     objects = []
     for name, label, file_name, placement in FILES:
         obj = doc.addObject("Mesh::Feature", name)
         obj.Label = label
-        obj.Mesh = placed(file_name, shift.multiply(placement))
+        obj.Mesh = placed(file_name, offset.multiply(placement))
         objects.append(obj)
     return objects
 

@@ -9,6 +9,8 @@ import FreeCAD
 import Part
 
 from checks import MAX_OVERLAP
+from sensor import PLUG
+from sensor import params as sensor_params
 
 from . import params
 
@@ -21,7 +23,6 @@ BOTTOM_DISH = "Нижняя Тарелка"
 FLOOR = "Дно"
 HOLDER = "Держатель"
 BRACKET = "Кронштейн"
-PLUG = "Заглушка"  # метка тела Датчика: пакет sensor не импортируем, см. params
 
 BEYOND = 1  # мм за габаритом тела: сквозное отверстие и путь выхода не кончаются на его грани
 
@@ -149,11 +150,10 @@ def holder():
     Корпус опирается на пластину спиной. Крючок — прямой стержень, Ушко
     лежит на нём верхом отверстия; вылет — как у крючка Вешалки.
     """
-    sensor = params.sensor
     ear = params.sensor_shift()  # центр отверстия Ушка
-    face = ear.x + sensor.CASE_X  # спина Корпуса
-    rod = sensor.HANGER_ROD_DIAMETER / 2
-    rod_z = ear.z + sensor.EAR_INNER_DIAMETER / 2 - rod
+    face = ear.x + sensor_params.CASE_X  # спина Корпуса
+    rod = sensor_params.HANGER_ROD_DIAMETER / 2
+    rod_z = ear.z + sensor_params.EAR_INNER_DIAMETER / 2 - rod
     thickness = params.HOLDER_THICKNESS
     width = params.HOLDER_WIDTH
     floor_top = params.floor_top()
@@ -166,7 +166,7 @@ def holder():
     )
     hook = Part.makeCylinder(
         rod,
-        thickness + sensor.HANGER_REACH - sensor.HANGER_PLATE_THICKNESS,
+        thickness + sensor_params.HANGER_REACH - sensor_params.HANGER_PLATE_THICKNESS,
         V(face - thickness, 0, rod_z),
         X,
     )

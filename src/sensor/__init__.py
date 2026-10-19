@@ -6,8 +6,6 @@
 import FreeCAD
 import Part
 
-from skeleton import params as skeleton
-
 from . import meshes
 from .params import (
     CASE_DIAMETER,
@@ -28,6 +26,17 @@ X = V(1, 0, 0)
 DOWN = V(0, 0, -1)
 
 PLUG = "Заглушка"
+
+
+def sensor_shift():
+    """Перенос Датчика в Щит из Скелета.
+
+    Импорт при вызове, не при загрузке: параметры Скелета читают параметры
+    Датчика, импорт skeleton здесь замкнул бы цикл через sensor/__init__.
+    """
+    from skeleton import params as skeleton_params
+
+    return skeleton_params.sensor_shift()
 
 
 def plug():
@@ -54,7 +63,7 @@ def plug():
         X,
     )
     shape = case.fuse([nose, ear.cut(hole)]).removeSplitter()
-    return shape.translated(skeleton.sensor_shift())
+    return shape.translated(sensor_shift())
 
 
 MAX_GABARIT_DELTA = 0.5  # мм
@@ -71,7 +80,7 @@ def gabarit(bodies):
         return []
     box = shape.BoundBox
     case = FreeCAD.BoundBox(meshes.case_box())  # копия: case_box в кэше
-    case.move(skeleton.sensor_shift())
+    case.move(sensor_shift())
     errors = []
     for axis in "XYZ":
         low = getattr(box, f"{axis}Min")
@@ -96,4 +105,4 @@ def build(doc):
     obj = doc.addObject("Part::Feature", "Plug")
     obj.Label = PLUG
     obj.Shape = plug()
-    return [obj], meshes.load(doc)
+    return [obj], meshes.load(doc, sensor_shift())

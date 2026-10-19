@@ -12,7 +12,7 @@ import math
 
 import FreeCAD
 
-from sensor import params as sensor  # лист: сам ничего не импортирует
+from sensor import params as sensor_params  # лист: сам ничего не импортирует
 
 # Тарелка: коническая оболочка, наружный край внизу, край отверстия наверху.
 # Профиль — от SanglierLab (Gill-экран).
@@ -113,6 +113,10 @@ def sensor_shift():
 
     Ось Носика — на оси Щита, низ Носика — на NOSE_TO_FLOOR_GAP выше Дна.
     """
-    nose_bottom = sensor.CASE_Z - sensor.CASE_DIAMETER / 2 - sensor.NOSE_LENGTH
+    nose_bottom = (
+        sensor_params.CASE_Z
+        - sensor_params.CASE_DIAMETER / 2
+        - sensor_params.NOSE_LENGTH
+    )
     z = floor_top() + NOSE_TO_FLOOR_GAP - nose_bottom
-    return FreeCAD.Vector(-sensor.NOSE_X, 0, z)
+    return FreeCAD.Vector(-sensor_params.NOSE_X, 0, z)
