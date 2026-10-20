@@ -72,3 +72,12 @@ class CouponTest(unittest.TestCase):
         errors = coupon.pair(bodies)
 
         self.assertError(errors, "Кольцо Дна 0.4", "Кольцо Тарелки", "зазор", "0.500 мм")
+
+    def test_floor_ring_offset_by_geometry_screws_in_coaxially(self):
+        bodies = coupon_bodies()
+        # гладкий цилиндр Ø86.2 в вершинах Ø87: щель 0.4; сдвинут геометрией, Placement нулевой
+        bodies["Кольцо Дна 0.4"] = Part.makeCylinder(43.1, 15, FreeCAD.Vector(150, 50, 0))
+
+        errors = coupon.pair(bodies)
+
+        self.assertEqual(errors, [])

@@ -101,21 +101,23 @@ def stl_names():
     return names
 
 
+AXIS_DECIMALS = 2  # ось кольца в XY — с точностью до 0.01 мм
+
+
 def screwed_in(shape, into):
     """shape, поставленная соосно в into на ту же высоту.
 
-    Соосно — по сдвигу раскладки (Placement), а не по центру габарита:
-    габарит врёт на ~1e-7 мм, и на почти соосных кольцах common молча
-    отдаёт пустоту. Сдвиг по оси кратен шагу: фаза спирали не меняется,
-    зуб наружной резьбы остаётся посередине впадины.
+    Ось — центр габарита в XY, округлённый до AXIS_DECIMALS знаков: габарит
+    врёт на ~1e-7 мм, и на почти соосных кольцах common молча отдаёт
+    пустоту. Сдвиг по оси кратен шагу: фаза спирали не меняется, зуб
+    наружной резьбы остаётся посередине впадины.
     """
-    offset = into.Placement.Base - shape.Placement.Base
     box = shape.optimalBoundingBox()
     target = into.optimalBoundingBox()
     pitch = skeleton_params.THREAD_PITCH
     return shape.translated(V(
-        offset.x,
-        offset.y,
+        round(target.Center.x, AXIS_DECIMALS) - round(box.Center.x, AXIS_DECIMALS),
+        round(target.Center.y, AXIS_DECIMALS) - round(box.Center.y, AXIS_DECIMALS),
         round((target.ZMin - box.ZMin) / pitch) * pitch,
     ))
 
