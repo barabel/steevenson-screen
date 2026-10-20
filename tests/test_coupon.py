@@ -6,7 +6,6 @@ import Part
 
 import coupon
 import skeleton
-from checks import check
 from coupon import params
 
 
@@ -14,22 +13,9 @@ def coupon_bodies():
     """Пробник из параметров → тела по меткам, без build.cmd."""
     doc = FreeCAD.newDocument("coupon_test")
     try:
-        objects = coupon.build(doc)
-        doc.recompute()
-        bodies = {}
-        for obj in objects:
-            bodies[obj.Label] = obj.Shape
-        return bodies
+        return coupon.bodies_in(doc)
     finally:
         FreeCAD.closeDocument(doc.Name)
-
-
-def coupon_errors(bodies):
-    """Тела → проверки фазы 0 и проверки Пробника."""
-    errors = check(bodies)
-    for check_fn in coupon.CHECKS:
-        errors += check_fn(bodies)
-    return errors
 
 
 class CouponTest(unittest.TestCase):
@@ -42,19 +28,19 @@ class CouponTest(unittest.TestCase):
         self.fail(f"нет ошибки со словами {words}: {errors}")
 
     def test_coupon_from_params_has_no_errors(self):
-        errors = coupon_errors(coupon_bodies())
+        errors = coupon.errors(coupon_bodies())
 
         self.assertEqual(errors, [])
 
     def test_coupon_of_other_diameter_and_pitch_has_no_errors(self):
         with mock.patch.dict(vars(skeleton.params), {"THREAD_DIAMETER": 60, "THREAD_PITCH": 4}):
-            errors = coupon_errors(coupon_bodies())
+            errors = coupon.errors(coupon_bodies())
 
         self.assertEqual(errors, [])
 
     def test_negative_clearance_breaks_pair_by_overlap(self):
         with mock.patch.dict(vars(params), {"CLEARANCES": [-0.3]}):
-            errors = coupon_errors(coupon_bodies())
+            errors = coupon.errors(coupon_bodies())
 
         self.assertError(errors, "Кольцо Дна -0.3", "Кольцо Тарелки", "пересечение", "мм³")
 

@@ -11,7 +11,7 @@ import FreeCAD
 import Part
 
 import thread
-from checks import MAX_OVERLAP
+from checks import MAX_OVERLAP, check
 from skeleton import BEYOND
 from skeleton import params as skeleton_params
 
@@ -176,7 +176,11 @@ CHECKS = [pair, bed]  # bodies → список ошибок, как в checks.p
 
 
 def build(doc):
-    """Добавляет кольца в doc, возвращает их объекты."""
+    """Добавляет кольца в doc, возвращает их объекты.
+
+    Контракт не как у пакетов деталей: в сцену Щита Пробник не входит,
+    build отдаёт список тел, без референсов, а не пару (тела, референсы).
+    """
     objects = []
     for label, shape in rings().items():
         obj = doc.addObject("Part::Feature", "Ring")
@@ -184,3 +188,21 @@ def build(doc):
         obj.Shape = shape
         objects.append(obj)
     return objects
+
+
+def bodies_in(doc):
+    """Строит кольца в doc и пересчитывает его: метка → Shape."""
+    objects = build(doc)
+    doc.recompute()
+    bodies = {}
+    for obj in objects:
+        bodies[obj.Label] = obj.Shape
+    return bodies
+
+
+def errors(bodies):
+    """Проверки фазы 0 и CHECKS Пробника: bodies → список ошибок."""
+    result = check(bodies)
+    for check_fn in CHECKS:
+        result += check_fn(bodies)
+    return result

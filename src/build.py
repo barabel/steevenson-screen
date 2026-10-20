@@ -83,8 +83,8 @@ def run():
     return 1 if errors else 0
 
 
-def export_stl(bodies, names):
-    """STL каждого тела в COUPON_STL, имя файла — names[метка].
+def export_coupon_stl(bodies, names):
+    """STL каждого тела Пробника в COUPON_STL, имя файла — names[метка].
 
     Папка очищается: на флешку не попадёт STL кольца, которого больше нет.
     """
@@ -104,18 +104,11 @@ def export_stl(bodies, names):
 def run_coupon():
     """Пробник в свой документ: FCStd, STL колец, проверки → список ошибок."""
     doc = FreeCAD.newDocument("coupon")
-    objects = coupon.build(doc)
-    doc.recompute()
-    bodies = {}
-    for obj in objects:
-        bodies[obj.Label] = obj.Shape
+    bodies = coupon.bodies_in(doc)
 
     save(doc, COUPON_FCSTD)
-    export_stl(bodies, coupon.stl_names())
-    errors = check(bodies)
-    for check_fn in coupon.CHECKS:
-        errors += check_fn(bodies)
-    return errors
+    export_coupon_stl(bodies, coupon.stl_names())
+    return coupon.errors(bodies)
 
 
 def main():
