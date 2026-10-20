@@ -12,6 +12,7 @@ import Part
 
 import thread
 from checks import MAX_OVERLAP
+from skeleton import BEYOND
 from skeleton import params as skeleton_params
 
 from . import params
@@ -49,7 +50,7 @@ def notches(count):
         slots.append(Part.makeBox(
             params.NOTCH_WIDTH,
             params.NOTCH_LENGTH,
-            params.NOTCH_DEPTH + 1,
+            params.NOTCH_DEPTH + BEYOND,
             V(
                 x - params.NOTCH_WIDTH / 2,
                 -params.NOTCH_LENGTH / 2,
@@ -63,6 +64,7 @@ def floor_ring(clearance, count):
     """Кольцо Дна: наружная резьба с зазором clearance, донышко снизу.
 
     Стенка за впадинами — как у кольца Тарелки. На донышке count насечек.
+    Донышко стоит на столе: нижний торец с фаской.
     """
     diameter = skeleton_params.THREAD_DIAMETER
     length = skeleton_params.THREAD_LENGTH
@@ -73,7 +75,8 @@ def floor_ring(clearance, count):
         V(0, 0, params.FLOOR_BOTTOM),
         Z,
     )
-    return thread.external(diameter, length, clearance).cut([bore, notches(count)])
+    ring = thread.external(diameter, length, clearance, bed_chamfer=True)
+    return ring.cut([bore, notches(count)])
 
 
 def rings():

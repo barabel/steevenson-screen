@@ -17,7 +17,7 @@ import math
 import FreeCAD
 import Part
 
-from skeleton import params, revolved
+from skeleton import BEYOND, params, revolved
 
 V = FreeCAD.Vector
 Z = V(0, 0, 1)
@@ -69,11 +69,11 @@ def sweep(profile, inner, length):
     return shell.shape()
 
 
-def external(diameter, length, clearance):
+def external(diameter, length, clearance, bed_chamfer=False):
     """Наружная резьба: сплошной стержень с витками, вход с фаской сверху.
 
-    Нижний торец тоже с фаской: на столе «слоновья нога» первого слоя
-    не попадает в резьбу.
+    bed_chamfer — фаска и на нижнем торце, если он стоит на столе: «слоновья
+    нога» первого слоя не попадает в резьбу.
 
     diameter — Ø по вершинам без зазора. Зуб и сердечник сжаты на clearance
     по нормали к профилю: щель до номинальной внутренней одинакова на
@@ -89,23 +89,26 @@ def external(diameter, length, clearance):
     profile = tooth(major, inner - 2 * abs(clearance) - overlap())
     if clearance:
         profile = profile.makeOffset2D(-clearance, JOIN_INTERSECTION)
+    # оболочка шире вершин: её стенка не совпадает с вершиной витка
+    wide = major + BEYOND
     keep = Part.Face(Part.makePolygon([
         V(inner, 0, -pitch),
-        V(major + 1, 0, -pitch),
-        V(major + 1, 0, pitch),
+        V(wide, 0, -pitch),
+        V(wide, 0, pitch),
         V(inner, 0, pitch),
         V(inner, 0, -pitch),
     ]))
     profile = profile.common(keep).Faces[0]
     rod = Part.makeCylinder(core, length + 2 * pitch, V(0, 0, -pitch), Z)
     rod = rod.fuse(sweep(profile, inner, length))
-    # оболочка шире вершин: её стенка не совпадает с вершиной витка
-    wide = major + 1
     crest = major - clearance
+    if bed_chamfer:
+        bottom = [(crest - chamfer, 0), (wide, chamfer + (wide - crest))]
+    else:
+        bottom = [(wide, 0)]
     envelope = revolved([
         (0, 0),
-        (crest - chamfer, 0),
-        (wide, chamfer + (wide - crest)),
+        *bottom,
         (wide, length - chamfer - (wide - crest)),
         (crest - chamfer, length),
         (0, length),
