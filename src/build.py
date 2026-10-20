@@ -1,6 +1,6 @@
 """Прогон: сцена → dist/shield.FCStd → виды → проверки → код выхода.
 
-Затем Пробник: dist/probe.FCStd, STL колец в dist/probe, проверки. Ошибки
+Затем Пробник: dist/coupon.FCStd, STL колец в dist/coupon, проверки. Ошибки
 обеих сцен — в общий список и общий код выхода.
 
 Запуск — build.cmd. Модуль импортируется и вызывается main(): при импорте
@@ -14,7 +14,7 @@ from pathlib import Path
 import FreeCAD
 import MeshPart
 
-import probe
+import coupon
 import scene
 from checks import check
 
@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 FCSTD = DIST / "shield.FCStd"
 VIEWS = DIST / "views"
-PROBE_FCSTD = DIST / "probe.FCStd"
-PROBE_STL = DIST / "probe"
+COUPON_FCSTD = DIST / "coupon.FCStd"
+COUPON_STL = DIST / "coupon"
 STL_DEFLECTION = 0.02  # мм, линейное отклонение граней: не съедает зазор резьбы
 
 
@@ -76,7 +76,7 @@ def run():
     errors += check(bodies)
     for check_fn in scene.checks():
         errors += check_fn(bodies)
-    errors += run_probe()
+    errors += run_coupon()
 
     for error in errors:
         log(f"ОШИБКА: {error}")
@@ -84,36 +84,36 @@ def run():
 
 
 def export_stl(bodies, names):
-    """STL каждого тела в PROBE_STL, имя файла — names[метка].
+    """STL каждого тела в COUPON_STL, имя файла — names[метка].
 
     Папка очищается: на флешку не попадёт STL кольца, которого больше нет.
     """
-    shutil.rmtree(PROBE_STL, ignore_errors=True)
-    PROBE_STL.mkdir(parents=True)
+    shutil.rmtree(COUPON_STL, ignore_errors=True)
+    COUPON_STL.mkdir(parents=True)
     for label, shape in bodies.items():
         mesh = MeshPart.meshFromShape(
             Shape=shape,
             LinearDeflection=STL_DEFLECTION,
             Relative=False,
         )
-        path = PROBE_STL / f"{names[label]}.stl"
+        path = COUPON_STL / f"{names[label]}.stl"
         mesh.write(str(path))
         log(f"STL: {path}")
 
 
-def run_probe():
+def run_coupon():
     """Пробник в свой документ: FCStd, STL колец, проверки → список ошибок."""
-    doc = FreeCAD.newDocument("probe")
-    objects = probe.build(doc)
+    doc = FreeCAD.newDocument("coupon")
+    objects = coupon.build(doc)
     doc.recompute()
     bodies = {}
     for obj in objects:
         bodies[obj.Label] = obj.Shape
 
-    save(doc, PROBE_FCSTD)
-    export_stl(bodies, probe.stl_names())
+    save(doc, COUPON_FCSTD)
+    export_stl(bodies, coupon.stl_names())
     errors = check(bodies)
-    for check_fn in probe.CHECKS:
+    for check_fn in coupon.CHECKS:
         errors += check_fn(bodies)
     return errors
 

@@ -9,15 +9,15 @@ import FreeCAD
 import Part
 
 import build
-from build import FCSTD, PROBE_FCSTD, PROBE_STL, ROOT, VIEWS
+from build import COUPON_FCSTD, COUPON_STL, FCSTD, ROOT, VIEWS
 from skeleton import params
 
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
 DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
 DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
-PROBE_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.3", "Кольцо Дна 0.4", "Кольцо Дна 0.5"]
-PROBE_STL_NAMES = ["ring-dish.stl", "ring-floor-0.3.stl", "ring-floor-0.4.stl", "ring-floor-0.5.stl"]
+COUPON_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.3", "Кольцо Дна 0.4", "Кольцо Дна 0.5"]
+COUPON_STL_NAMES = ["ring-dish.stl", "ring-floor-0.3.stl", "ring-floor-0.4.stl", "ring-floor-0.5.stl"]
 
 
 class ProgonTest(unittest.TestCase):
@@ -27,8 +27,8 @@ class ProgonTest(unittest.TestCase):
     def setUpClass(cls):
         FCSTD.unlink(missing_ok=True)
         shutil.rmtree(VIEWS, ignore_errors=True)
-        PROBE_FCSTD.unlink(missing_ok=True)
-        shutil.rmtree(PROBE_STL, ignore_errors=True)
+        COUPON_FCSTD.unlink(missing_ok=True)
+        shutil.rmtree(COUPON_STL, ignore_errors=True)
 
         cls.result = subprocess.run(
             ["cmd", "/d", "/c", str(ROOT / "build.cmd")],
@@ -59,19 +59,19 @@ class ProgonTest(unittest.TestCase):
             self.assertTrue(png.is_file(), f"нет {png}")
             self.assertGreater(png.stat().st_size, 0, f"пустой {png}")
 
-    def test_progon_saves_probe_fcstd_with_rings_and_stl_of_each(self):
+    def test_progon_saves_coupon_fcstd_with_rings_and_stl_of_each(self):
         result = self.result
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        doc = FreeCAD.openDocument(str(PROBE_FCSTD))
+        doc = FreeCAD.openDocument(str(COUPON_FCSTD))
         try:
             labels = [obj.Label for obj in doc.Objects]
-            for label in PROBE_LABELS:
+            for label in COUPON_LABELS:
                 self.assertIn(label, labels)
         finally:
             FreeCAD.closeDocument(doc.Name)
-        for name in PROBE_STL_NAMES:
-            stl = PROBE_STL / name
+        for name in COUPON_STL_NAMES:
+            stl = COUPON_STL / name
             self.assertTrue(stl.is_file(), f"нет {stl}")
             self.assertGreater(stl.stat().st_size, 0, f"пустой {stl}")
 
