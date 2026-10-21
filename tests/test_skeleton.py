@@ -149,3 +149,10 @@ class SkeletonTest(unittest.TestCase):
             errors = scene_errors()
 
         self.assertError(errors, "просвет", "мм")
+
+    def test_drip_8_mm_below_shelf_breaks_clearance(self):
+        with mock.patch.dict(vars(params), {"DRIP_DROP": 8}):
+            errors = scene_errors()
+
+        # у Нижней Тарелки Полка до Ø отверстия, под низом Капельника: 16 − 2 − 8
+        self.assertError(errors, "просвет", "Нижняя Тарелка", "6.00 мм")
