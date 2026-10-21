@@ -93,8 +93,17 @@ DISH_MIN_CLEARANCE = 9  # просвет между соседними Таре�
 # Выводимые параметры.
 
 def cone_run():
-    """Вынос конуса в плане: от наружного края Полки до наружного края Тарелки."""
-    return DISH_DIAMETER / 2 - SHELF_RADIUS
+    """Вынос конуса в плане: от наружного края Полки до наружного края Тарелки.
+
+    Полка не помещается в Ø Тарелки (вынос ≤ 0) — ValueError с Ø и радиусом Полки.
+    """
+    run = DISH_DIAMETER / 2 - SHELF_RADIUS
+    if run <= 0:
+        raise ValueError(
+            f"Ø Тарелки {DISH_DIAMETER:g} мм: Полка r{SHELF_RADIUS:g} не помещается"
+            f" — вынос конуса {run:.2f} мм, нужен Ø больше {2 * SHELF_RADIUS:g} мм",
+        )
+    return run
 
 
 def cone_rise():
