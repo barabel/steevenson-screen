@@ -9,8 +9,7 @@ import FreeCAD
 import Part
 
 import thread
-from checks import MAX_OVERLAP
-from skeleton import BEYOND, BOTTOM_DISH, LID, params, revolved
+from skeleton import BEYOND, BOTTOM_DISH, LID, dish_label, params, revolved
 
 from .shadow import shadow
 
@@ -18,41 +17,41 @@ V = FreeCAD.Vector
 Z = V(0, 0, 1)
 
 
-def profile(top, hole, drip=False):
-    """Тело вращения Тарелки: Полка от радиуса hole и конус от её наружного края.
+def profile(top, hole_radius, drip=False):
+    """Тело вращения Тарелки: Полка от hole_radius и конус от её наружного края.
 
     Верх Полки — на высоте top. Конус идёт вниз и наружу под CONE_ANGLE;
     его нижняя поверхность встречает низ Полки чуть внутри её края.
-    С drip у отверстия — Капельник: его нижний край на радиусе hole,
+    С drip у отверстия — Капельник: его нижний край на hole_radius,
     Полка начинается от его верхнего края.
     """
-    shelf = params.SHELF_RADIUS
+    ledge = params.LEDGE_RADIUS
     outer = params.DISH_DIAMETER / 2
     rise = params.cone_rise()
     wall = params.DISH_WALL
     cone_wall = params.cone_wall_height()
-    inner = shelf - (cone_wall - wall) / math.tan(math.radians(params.CONE_ANGLE))
+    inner = ledge - (cone_wall - wall) / math.tan(math.radians(params.CONE_ANGLE))
     if drip:
         drop = wall + params.DRIP_DROP
         inset = params.DRIP_INSET
         # низ Капельника шириной в стенку по нормали к его наклону
-        tip = hole + wall * math.hypot(inset, drop) / drop
-        start = hole + inset
-        lip = [
+        tip = hole_radius + wall * math.hypot(inset, drop) / drop
+        start = hole_radius + inset
+        hole_edge = [
             (tip + (drop - wall) * inset / drop, top - wall),
             (tip, top - drop),
-            (hole, top - drop),
+            (hole_radius, top - drop),
         ]
     else:
-        start = hole
-        lip = [(hole, top - wall)]
+        start = hole_radius
+        hole_edge = [(hole_radius, top - wall)]
     return revolved([
         (start, top),
-        (shelf, top),
+        (ledge, top),
         (outer, top - rise),
         (outer, top - rise - cone_wall),
         (inner, top - wall),
-    ] + lip)
+    ] + hole_edge)
 
 
 def standoff_centers():
@@ -198,27 +197,27 @@ def shapes():
     """Стопка сверху вниз: метка → Shape."""
     result = {LID: lid()}
     for index in range(1, params.DISH_COUNT):
-        result[f"Тарелка {index}"] = dish(index)
+        result[dish_label(index)] = dish(index)
     result[BOTTOM_DISH] = bottom_dish()
     return result
 
 
 def standoffs_ring(bodies):
-    """Отверстия под Шпильки на осях Стоек не задевают резьбовое кольцо.
+    """Стойки — круг STANDOFF_DIAMETER на оси каждой — не заходят на резьбовое кольцо.
 
-    Шпилька проходит сквозь Полку Нижней Тарелки и выходит под неё рядом
-    с кольцом. Полка и кольцо слиты в одно тело, проверка пересечений
-    конфликт не видит: тела строятся отдельно из параметров Скелета,
-    bodies не нужны.
+    Кольцо — до наружной стенки. Полка Нижней Тарелки и кольцо слиты в одно
+    тело, проверка пересечений конфликт не видит. Считается из параметров
+    Скелета, как шайба↔кольцо: bodies не нужны.
     """
-    ring = thread_ring()
-    volume = 0
-    for shape in stud_rods(ring):
-        volume += ring.common(shape).Volume
-    if volume > MAX_OVERLAP:
+    ring = params.THREAD_DIAMETER / 2 + params.THREAD_RING_WALL
+    gaps = []
+    for center in standoff_centers():
+        gaps.append(center.Length - params.STANDOFF_DIAMETER / 2 - ring)
+    gap = round(min(gaps), 2)
+    if gap < 0:
         return [
             f"{BOTTOM_DISH}: Стойки и резьбовое кольцо не пересекаются"
-            f" — пересечение {volume:.2f} мм³",
+            f" — пересечение {-gap:.2f} мм",
         ]
     return []
 
@@ -244,7 +243,7 @@ def washer_ring(bodies):
     return []
 
 
-def clearance(bodies):
+def dish_gap(bodies):
     """Просвет между соседними телами стопки не меньше DISH_MIN_CLEARANCE.
 
     Меряется по сечению плоскостью через ось Щита посередине между Стойками:
@@ -253,7 +252,7 @@ def clearance(bodies):
     """
     names = [LID]
     for index in range(1, params.DISH_COUNT):
-        names.append(f"Тарелка {index}")
+        names.append(dish_label(index))
     names.append(BOTTOM_DISH)
     angle = math.radians(params.STANDOFF_ANGLE + 180 / params.STANDOFF_COUNT)
     normal = V(-math.sin(angle), math.cos(angle), 0)
@@ -275,7 +274,7 @@ def clearance(bodies):
 
 
 # bodies → список ошибок, как в checks.py
-CHECKS = [standoffs_ring, washer_ring, shadow, clearance]
+CHECKS = [standoffs_ring, washer_ring, shadow, dish_gap]
 
 
 def build(doc):

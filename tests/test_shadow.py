@@ -4,19 +4,10 @@ from unittest import mock
 import FreeCAD
 import Part
 
-import stack
 from skeleton import params
-from test_skeleton import scene_errors
+from test_skeleton import scene_errors, stack_errors
 
 V = FreeCAD.Vector
-
-
-def stack_errors(bodies):
-    """Подставные тела → проверки стопки."""
-    errors = []
-    for check_fn in stack.CHECKS:
-        errors += check_fn(bodies)
-    return errors
 
 
 def plug():

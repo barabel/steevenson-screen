@@ -24,6 +24,7 @@ EPSILON = 1e-6  # мм: луч из точки не задевает тело н
 # доля стороны треугольника: луч точно по ребру между двумя треугольниками
 # (шов тела вращения) не проскальзывает между ними от шума float
 EDGE = 1e-9
+PARALLEL = 1e-12  # |det| меньше — луч параллелен треугольнику
 
 
 def body_triangles(bodies):
@@ -48,8 +49,11 @@ def plug_points(shape):
     return numpy.array([[p.x, p.y, p.z] for p in mesh.Points])
 
 
-def along(points, origin, vector, det):
-    """(точка − вершина треугольника)·vector / det для всех пар: массив P×T."""
+def ray_triangle_coordinate(points, origin, vector, det):
+    """Одна из u, v, t Möller–Trumbore для всех пар точка × треугольник: массив P×T.
+
+    (точка − вершина треугольника)·vector / det.
+    """
     offset = numpy.einsum("ij,ij->i", origin, vector)
     return (points @ vector.T - offset) / det
 
@@ -91,11 +95,11 @@ def lit(points, triangles, direction):
     edge2 = triangles[:, 2] - origin
     pvec = numpy.cross(direction, edge2)
     det = numpy.einsum("ij,ij->i", edge1, pvec)
-    facing = numpy.abs(det) > 1e-12  # луч не параллелен треугольнику
+    facing = numpy.abs(det) > PARALLEL
     det = numpy.where(facing, det, 1)
-    u = along(points, origin, pvec, det)
-    v = along(points, origin, numpy.cross(edge1, direction), det)
-    t = along(points, origin, numpy.cross(edge1, edge2), det)
+    u = ray_triangle_coordinate(points, origin, pvec, det)
+    v = ray_triangle_coordinate(points, origin, numpy.cross(edge1, direction), det)
+    t = ray_triangle_coordinate(points, origin, numpy.cross(edge1, edge2), det)
     hit = (
         facing
         & (u >= -EDGE)

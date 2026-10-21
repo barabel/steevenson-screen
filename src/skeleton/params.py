@@ -21,7 +21,7 @@ from sensor import params as sensor_params  # лист: сам ничего не
 # есть с выноса ≈ 13.2 (подъём + толщина стенки по вертикали > шага)
 DISH_DIAMETER = 154
 DISH_HOLE_DIAMETER = 76  # по нижнему краю Капельника: Датчик с Держателем в плане — радиус 27.6, плюс зазор 10
-SHELF_RADIUS = 62  # наружный радиус Полки: Стойка r56 с бобышкой Ø10 и 1 мм до края
+LEDGE_RADIUS = 62  # наружный радиус Полки: Стойка Ø10 на r56 и 1 мм до края
 # угол конуса к горизонтали, градусы: печать без поддержек; круче ≈ 46°
 # просвет по конусу при шаге 16 станет меньше 9
 CONE_ANGLE = 45
@@ -105,11 +105,11 @@ def cone_run():
 
     Полка не помещается в Ø Тарелки (вынос ≤ 0) — ValueError с Ø и радиусом Полки.
     """
-    run = DISH_DIAMETER / 2 - SHELF_RADIUS
+    run = DISH_DIAMETER / 2 - LEDGE_RADIUS
     if run <= 0:
         raise ValueError(
-            f"Ø Тарелки {DISH_DIAMETER:g} мм: Полка r{SHELF_RADIUS:g} не помещается"
-            f" — вынос конуса {run:.2f} мм, нужен Ø больше {2 * SHELF_RADIUS:g} мм",
+            f"Ø Тарелки {DISH_DIAMETER:g} мм: Полка r{LEDGE_RADIUS:g} не помещается"
+            f" — вынос конуса {run:.2f} мм, нужен Ø больше {2 * LEDGE_RADIUS:g} мм",
         )
     return run
 

@@ -26,6 +26,14 @@ def skeleton_errors(bodies):
     return errors
 
 
+def stack_errors(bodies):
+    """Подставные тела → проверки стопки."""
+    errors = []
+    for check_fn in stack.CHECKS:
+        errors += check_fn(bodies)
+    return errors
+
+
 def scene_errors():
     """Сцена из параметров Скелета → тела → все проверки, без build.cmd."""
     doc = FreeCAD.newDocument("skeleton_test")
@@ -87,6 +95,13 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
 
+    def test_standoffs_at_r53_5_reach_over_thread_ring(self):
+        # Стойка Ø10 на r53.5 заходит на 0.5 мм за наружную стенку кольца r49
+        with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 53.5}):
+            errors = stack_errors({})
+
+        self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
+
     def test_standoffs_at_r53_put_washer_against_thread_ring(self):
         with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 53}):
             errors = scene_errors()
@@ -117,7 +132,7 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Заглушка", "тень")
 
-    def test_shelf_wider_than_dish_names_diameter_and_shelf(self):
+    def test_ledge_wider_than_dish_names_diameter_and_ledge(self):
         with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
             with self.assertRaises(ValueError) as caught:
                 scene_errors()
@@ -139,15 +154,13 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "выход вниз", "Нижняя Тарелка")
 
-    def test_dishes_5_mm_apart_break_clearance(self):
+    def test_dishes_5_mm_apart_break_dish_gap(self):
         bodies = {
             "Тарелка 2": Part.makeCylinder(70, 2),
             "Тарелка 3": Part.makeCylinder(70, 2, V(0, 0, -7)),
         }
 
-        errors = []
-        for check_fn in stack.CHECKS:
-            errors += check_fn(bodies)
+        errors = stack_errors(bodies)
 
         self.assertError(errors, "просвет", "Тарелка 2", "Тарелка 3", "5.00 мм")
 
@@ -172,13 +185,13 @@ class SkeletonTest(unittest.TestCase):
         self.assertLess(lid.common(nut.fuse(bolt)).Volume, MAX_OVERLAP)
         self.assertAlmostEqual(lid.common(cover).Volume, cover.Volume, places=2)
 
-    def test_pitch_12_breaks_clearance(self):
+    def test_pitch_12_breaks_dish_gap(self):
         with mock.patch.dict(vars(params), {"DISH_PITCH": 12}):
             errors = scene_errors()
 
         self.assertError(errors, "просвет", "мм")
 
-    def test_drip_8_mm_below_shelf_breaks_clearance(self):
+    def test_drip_8_mm_below_ledge_breaks_dish_gap(self):
         with mock.patch.dict(vars(params), {"DRIP_DROP": 8}):
             errors = scene_errors()
 
