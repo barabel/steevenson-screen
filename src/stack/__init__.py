@@ -156,8 +156,38 @@ def standoffs_ring(bodies):
     return []
 
 
+def clearance(bodies):
+    """Просвет между соседними телами стопки не меньше DISH_MIN_CLEARANCE.
+
+    Меряется по сечению плоскостью через ось Щита посередине между Стойками:
+    Стойки в него не попадают, а у тел вращения кратчайшее расстояние лежит
+    в такой плоскости. Нет соседа или он null — пару пропускает.
+    """
+    names = [LID]
+    for index in range(1, params.DISH_COUNT):
+        names.append(f"Тарелка {index}")
+    names.append(BOTTOM_DISH)
+    angle = math.radians(params.STANDOFF_ANGLE + 180 / params.STANDOFF_COUNT)
+    normal = V(-math.sin(angle), math.cos(angle), 0)
+    minimum = params.DISH_MIN_CLEARANCE
+    errors = []
+    for upper, lower in zip(names, names[1:]):
+        pair = [bodies.get(upper), bodies.get(lower)]
+        if any(shape is None or shape.isNull() for shape in pair):
+            continue
+        sections = []
+        for shape in pair:
+            sections.append(Part.Compound(shape.slice(normal, 0)))
+        gap = round(sections[0].distToShape(sections[1])[0], 2)
+        if gap < minimum:
+            errors.append(
+                f"{upper} ↔ {lower}: просвет ≥ {minimum:g} мм — {gap:.2f} мм",
+            )
+    return errors
+
+
 # bodies → список ошибок, как в checks.py
-CHECKS = [standoffs_ring]
+CHECKS = [standoffs_ring, clearance]
 
 
 def build(doc):

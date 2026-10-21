@@ -6,6 +6,7 @@ import Part
 
 import scene
 import skeleton
+import stack
 from checks import check
 from skeleton import params
 
@@ -115,3 +116,21 @@ class SkeletonTest(unittest.TestCase):
         errors = skeleton_errors(bodies)
 
         self.assertError(errors, "выход вниз", "Нижняя Тарелка")
+
+    def test_dishes_5_mm_apart_break_clearance(self):
+        bodies = {
+            "Тарелка 2": Part.makeCylinder(70, 2),
+            "Тарелка 3": Part.makeCylinder(70, 2, V(0, 0, -7)),
+        }
+
+        errors = []
+        for check_fn in stack.CHECKS:
+            errors += check_fn(bodies)
+
+        self.assertError(errors, "просвет", "Тарелка 2", "Тарелка 3", "5.00 мм")
+
+    def test_pitch_12_breaks_clearance(self):
+        with mock.patch.dict(vars(params), {"DISH_PITCH": 12}):
+            errors = scene_errors()
+
+        self.assertError(errors, "просвет", "мм")
