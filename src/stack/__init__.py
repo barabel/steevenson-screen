@@ -17,19 +17,25 @@ V = FreeCAD.Vector
 Z = V(0, 0, 1)
 
 
-def band(top, height):
-    """Кольцевой слой конуса Тарелки.
+def profile(top, hole):
+    """Тело вращения Тарелки: Полка от радиуса hole и конус от её наружного края.
 
-    От поверхности с краем отверстия на высоте top вниз на height по вертикали.
+    Верх Полки — на высоте top. Конус идёт вниз и наружу под CONE_ANGLE;
+    его нижняя поверхность встречает низ Полки чуть внутри её края.
     """
-    hole = params.DISH_HOLE_DIAMETER / 2
+    shelf = params.SHELF_RADIUS
     outer = params.DISH_DIAMETER / 2
-    rise = params.DISH_RISE
+    rise = params.cone_rise()
+    wall = params.DISH_WALL
+    cone_wall = params.cone_wall_height()
+    inner = shelf - (cone_wall - wall) / math.tan(math.radians(params.CONE_ANGLE))
     return revolved([
         (hole, top),
+        (shelf, top),
         (outer, top - rise),
-        (outer, top - rise - height),
-        (hole, top - height),
+        (outer, top - rise - cone_wall),
+        (inner, top - wall),
+        (hole, top - wall),
     ])
 
 
@@ -47,24 +53,21 @@ def standoff_centers():
 
 
 def standoffs(top):
-    """Стойки Тарелки: от её стенки вверх до нижней поверхности соседней.
+    """Стойки Тарелки с верхом Полки на top: свисают до Полки нижней Тарелки.
 
-    Цилиндр Стойки обрезан слоем между нижними поверхностями двух Тарелок:
-    низ — по своей стенке, верх — по соседней, касание без пересечения.
+    Низ — на верхе Полки нижней Тарелки, касание без пересечения. Верх —
+    в середине своей Полки: сливается с ней без совпадающих граней.
     """
-    wall = params.dish_wall_height()
-    pitch = params.DISH_PITCH
-    span = band(top + pitch - wall, pitch)
-    height = params.DISH_RISE + wall + pitch
+    bottom = top - params.DISH_PITCH
+    height = params.DISH_PITCH - params.DISH_WALL / 2
     result = []
     for center in standoff_centers():
-        cylinder = Part.makeCylinder(
+        result.append(Part.makeCylinder(
             params.STANDOFF_DIAMETER / 2,
             height,
-            center + V(0, 0, top - params.DISH_RISE - wall),
+            center + V(0, 0, bottom),
             Z,
-        )
-        result.append(cylinder.common(span))
+        ))
     return result
 
 
@@ -88,45 +91,41 @@ def stud_holes(shape):
 
 
 def dish(index):
-    """Тарелка index (1…DISH_COUNT) со Стойками до соседней сверху."""
+    """Тарелка index (1…DISH_COUNT − 1) со Стойками до Полки соседней снизу."""
     top = params.dish_top(index)
-    body = band(top, params.dish_wall_height()).fuse(standoffs(top))
+    body = profile(top, params.DISH_HOLE_DIAMETER / 2).fuse(standoffs(top))
     return stud_holes(body).removeSplitter()
 
 
 def thread_ring():
-    """Резьбовое кольцо под Нижней Тарелкой, без витков.
+    """Резьбовое кольцо под Полкой Нижней Тарелки, без витков.
 
-    Верх кольца — по средней линии стенки конуса: врезан в Тарелку, наружу
-    не выходит. Низ — на THREAD_LENGTH ниже, чем конус у внутренней стенки.
+    Верх — в середине Полки: врезан в неё. Низ — на THREAD_LENGTH ниже
+    низа Полки.
     """
     inner = params.THREAD_DIAMETER / 2
     outer = inner + params.THREAD_RING_WALL
-    middle = params.dish_wall_height() / 2
+    top = params.floor_top() + params.DISH_WALL / 2
     bottom = params.floor_top() - params.THREAD_LENGTH
     return revolved([
-        (inner, params.dish_bottom_at(inner) + middle),
-        (outer, params.dish_bottom_at(outer) + middle),
+        (inner, top),
+        (outer, top),
         (outer, bottom),
         (inner, bottom),
     ])
 
 
 def bottom_dish():
-    """Нижняя Тарелка: Тарелка со Стойками и резьбовым кольцом снизу."""
-    return dish(params.DISH_COUNT).fuse(thread_ring()).removeSplitter()
+    """Нижняя Тарелка: профиль Тарелки и резьбовое кольцо под Полкой, без Стоек."""
+    top = params.dish_top(params.DISH_COUNT)
+    body = profile(top, params.DISH_HOLE_DIAMETER / 2).fuse(thread_ring())
+    return stud_holes(body).removeSplitter()
 
 
 def lid():
-    """Крышка: Тарелка с закрытым отверстием, верх — в Точке подвеса."""
-    wall = params.dish_wall_height()
-    cover = Part.makeCylinder(
-        params.DISH_HOLE_DIAMETER / 2,
-        wall,
-        V(0, 0, params.dish_top(0) - wall),
-        Z,
-    )
-    body = band(params.dish_top(0), wall).fuse(cover)
+    """Крышка: Полка сплошная до оси, верх плоский в Точке подвеса; Стойки до Тарелки 1."""
+    top = params.dish_top(0)
+    body = profile(top, 0).fuse(standoffs(top))
     return stud_holes(body).removeSplitter()
 
 
@@ -140,15 +139,16 @@ def shapes():
 
 
 def standoffs_ring(bodies):
-    """Стойки Нижней Тарелки с отверстиями под Шпильки не задевают резьбовое кольцо.
+    """Отверстия под Шпильки на осях Стоек не задевают резьбовое кольцо.
 
-    Стойки и кольцо слиты в одно тело, проверка пересечений их не видит:
-    тела строятся отдельно из параметров Скелета, bodies не нужны.
+    Шпилька проходит сквозь Полку Нижней Тарелки и выходит под неё рядом
+    с кольцом. Полка и кольцо слиты в одно тело, проверка пересечений
+    конфликт не видит: тела строятся отдельно из параметров Скелета,
+    bodies не нужны.
     """
     ring = thread_ring()
-    top = params.dish_top(params.DISH_COUNT)
     volume = 0
-    for shape in standoffs(top) + stud_rods(ring):
+    for shape in stud_rods(ring):
         volume += ring.common(shape).Volume
     if volume > MAX_OVERLAP:
         return [

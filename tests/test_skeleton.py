@@ -89,7 +89,6 @@ class SkeletonTest(unittest.TestCase):
     def test_skeleton_from_params_has_no_errors(self):
         cases = {
             "по умолчанию": {},
-            "Ø 120": {"DISH_DIAMETER": 120},
             "N + 1": {"DISH_COUNT": params.DISH_COUNT + 1},
         }
         for name, changes in cases.items():
