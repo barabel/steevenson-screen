@@ -87,6 +87,12 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
 
+    def test_standoffs_at_r53_put_washer_against_thread_ring(self):
+        with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 53}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Нижняя Тарелка", "шайба", "резьбовое кольцо", "мм")
+
     def test_skeleton_from_params_has_no_errors(self):
         cases = {
             "по умолчанию": {},

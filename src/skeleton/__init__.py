@@ -37,8 +37,16 @@ def revolved(points):
 
 
 def floor():
-    """Дно: цилиндр в резьбовом кольце с радиальным зазором резьбы."""
-    radius = params.THREAD_DIAMETER / 2 - params.THREAD_CLEARANCE
+    """Дно: цилиндр в резьбовом кольце по сердечнику наружной резьбы, без витков.
+
+    Сердечник — впадины витков Дна с зазором резьбы: Черновик проходит
+    внутри витков резьбового кольца, не задевая их.
+    """
+    radius = (
+        params.THREAD_DIAMETER / 2
+        - params.THREAD_DEPTH
+        - params.THREAD_CLEARANCE
+    )
     return Part.makeCylinder(
         radius,
         params.THREAD_LENGTH,
