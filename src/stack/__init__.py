@@ -244,7 +244,7 @@ def washer_ring(bodies):
 
 
 def dish_gap(bodies):
-    """Просвет между соседними телами стопки не меньше DISH_MIN_CLEARANCE.
+    """Просвет между соседними телами стопки не меньше DISH_MIN_GAP.
 
     Меряется по сечению плоскостью через ось Щита посередине между Стойками:
     Стойки в него не попадают, а у тел вращения кратчайшее расстояние лежит
@@ -256,7 +256,7 @@ def dish_gap(bodies):
     names.append(BOTTOM_DISH)
     angle = math.radians(params.STANDOFF_ANGLE + 180 / params.STANDOFF_COUNT)
     normal = V(-math.sin(angle), math.cos(angle), 0)
-    minimum = params.DISH_MIN_CLEARANCE
+    minimum = params.DISH_MIN_GAP
     errors = []
     for upper, lower in zip(names, names[1:]):
         pair = [bodies.get(upper), bodies.get(lower)]
