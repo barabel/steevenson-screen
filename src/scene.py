@@ -9,8 +9,9 @@
 """
 import sensor
 import skeleton
+import stack
 
-PARTS = [skeleton, sensor]
+PARTS = [stack, skeleton, sensor]
 
 
 def build(doc):

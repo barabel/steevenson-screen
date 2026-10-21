@@ -1,3 +1,4 @@
+import math
 import unittest
 from unittest import mock
 
@@ -6,7 +7,8 @@ import Part
 
 import scene
 import skeleton
-from checks import check
+import stack
+from checks import MAX_OVERLAP, check
 from skeleton import params
 
 V = FreeCAD.Vector
@@ -20,6 +22,14 @@ def skeleton_errors(bodies):
     """Подставные тела → проверки Скелета."""
     errors = []
     for check_fn in skeleton.CHECKS:
+        errors += check_fn(bodies)
+    return errors
+
+
+def stack_errors(bodies):
+    """Подставные тела → проверки стопки."""
+    errors = []
+    for check_fn in stack.CHECKS:
         errors += check_fn(bodies)
     return errors
 
@@ -85,11 +95,24 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
 
+    def test_standoffs_at_r53_5_reach_over_thread_ring(self):
+        # Стойка Ø10 на r53.5 заходит на 0.5 мм за наружную стенку кольца r49
+        with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 53.5}):
+            errors = stack_errors({})
+
+        self.assertError(errors, "Нижняя Тарелка", "Стойки", "резьбовое кольцо")
+
+    def test_standoffs_at_r53_put_washer_against_thread_ring(self):
+        with mock.patch.dict(vars(params), {"STANDOFF_RADIUS": 53}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Нижняя Тарелка", "шайба", "резьбовое кольцо", "мм")
+
     def test_skeleton_from_params_has_no_errors(self):
         cases = {
             "по умолчанию": {},
-            "Ø 120": {"DISH_DIAMETER": 120},
             "N + 1": {"DISH_COUNT": params.DISH_COUNT + 1},
+            "Ø 160": {"DISH_DIAMETER": 160},
         }
         for name, changes in cases.items():
             with self.subTest(name):
@@ -100,8 +123,23 @@ class SkeletonTest(unittest.TestCase):
 
     def test_smaller_dish_gives_shorter_bracket_reach(self):
         reach = params.bracket_reach()
-        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
             self.assertLess(params.bracket_reach(), reach)
+
+    def test_dish_140_breaks_shadow(self):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Заглушка", "тень")
+
+    def test_ledge_wider_than_dish_names_diameter_and_ledge(self):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
+            with self.assertRaises(ValueError) as caught:
+                scene_errors()
+
+        message = str(caught.exception)
+        for word in ["Ø", "120", "Полк", "62"]:
+            self.assertIn(word, message)
 
     def test_holder_wider_than_bottom_dish_hole(self):
         ring = Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5))
@@ -115,3 +153,47 @@ class SkeletonTest(unittest.TestCase):
         errors = skeleton_errors(bodies)
 
         self.assertError(errors, "выход вниз", "Нижняя Тарелка")
+
+    def test_dishes_5_mm_apart_break_dish_gap(self):
+        bodies = {
+            "Тарелка 2": Part.makeCylinder(70, 2),
+            "Тарелка 3": Part.makeCylinder(70, 2, V(0, 0, -7)),
+        }
+
+        errors = stack_errors(bodies)
+
+        self.assertError(errors, "просвет", "Тарелка 2", "Тарелка 3", "5.00 мм")
+
+    def test_lid_takes_m6_nut_from_below_under_5_mm_of_plastic(self):
+        lid = stack.lid()
+        # гайка M6: под ключ 10, высота 5; верх — на 5 мм под Точкой подвеса
+        corner = 5 / math.cos(math.radians(30))
+        corners = []
+        for i in range(7):
+            angle = math.radians(60 * i)
+            corners.append(V(
+                corner * math.cos(angle),
+                corner * math.sin(angle),
+                -10,
+            ))
+        nut = Part.Face(Part.makePolygon(corners)).extrude(V(0, 0, 5))
+        bolt = Part.makeCylinder(3, 12, V(0, 0, -11))
+        cover = Part.makeCylinder(5, 5, V(0, 0, -5)).cut(
+            Part.makeCylinder(3.5, 5, V(0, 0, -5)),
+        )
+
+        self.assertLess(lid.common(nut.fuse(bolt)).Volume, MAX_OVERLAP)
+        self.assertAlmostEqual(lid.common(cover).Volume, cover.Volume, places=2)
+
+    def test_pitch_12_breaks_dish_gap(self):
+        with mock.patch.dict(vars(params), {"DISH_PITCH": 12}):
+            errors = scene_errors()
+
+        self.assertError(errors, "просвет", "мм")
+
+    def test_drip_8_mm_below_ledge_breaks_dish_gap(self):
+        with mock.patch.dict(vars(params), {"DRIP_DROP": 8}):
+            errors = scene_errors()
+
+        # у Нижней Тарелки Полка до Ø отверстия, под низом Капельника: 16 − 2 − 8
+        self.assertError(errors, "просвет", "Нижняя Тарелка", "6.00 мм")
