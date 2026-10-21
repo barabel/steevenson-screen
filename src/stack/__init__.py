@@ -8,6 +8,7 @@ import math
 import FreeCAD
 import Part
 
+import thread
 from checks import MAX_OVERLAP
 from skeleton import BEYOND, BOTTOM_DISH, LID, params, revolved
 
@@ -98,28 +99,35 @@ def dish(index):
 
 
 def thread_ring():
-    """Резьбовое кольцо под Полкой Нижней Тарелки, без витков.
+    """Резьбовое кольцо под Полкой Нижней Тарелки: внутренняя резьба номинальная.
 
-    Верх — в середине Полки: врезан в неё. Низ — на THREAD_LENGTH ниже
-    низа Полки.
+    Витки — модулем резьбы, как у Кольца Тарелки Пробника: весь зазор на Дне.
+    Низ — на THREAD_LENGTH ниже низа Полки, там вход с фаской; спираль
+    начинается на низе кольца. Верх — в середине Полки: врезан в неё,
+    резьба упирается в низ Полки.
     """
-    inner = params.THREAD_DIAMETER / 2
-    outer = inner + params.THREAD_RING_WALL
+    diameter = params.THREAD_DIAMETER
+    length = params.THREAD_LENGTH
     top = params.floor_top() + params.DISH_WALL / 2
-    bottom = params.floor_top() - params.THREAD_LENGTH
-    return revolved([
-        (inner, top),
-        (outer, top),
-        (outer, bottom),
-        (inner, bottom),
-    ])
+    bottom = params.floor_top() - length
+    blank = Part.makeCylinder(
+        diameter / 2 + params.THREAD_RING_WALL,
+        top - bottom,
+        V(0, 0, bottom),
+        Z,
+    )
+    return blank.cut(thread.internal(diameter, length).translated(V(0, 0, bottom)))
 
 
 def bottom_dish():
-    """Нижняя Тарелка: профиль Тарелки и резьбовое кольцо под Полкой, без Стоек."""
+    """Нижняя Тарелка: профиль Тарелки и резьбовое кольцо под Полкой, без Стоек.
+
+    Без removeSplitter: кольцо врезано в Полку, сливать нечего, а с витками
+    он даёт тело, на котором булевы операции молча отдают пустоту.
+    """
     top = params.dish_top(params.DISH_COUNT)
     body = profile(top, params.DISH_HOLE_DIAMETER / 2).fuse(thread_ring())
-    return stud_holes(body).removeSplitter()
+    return stud_holes(body)
 
 
 def lid():
@@ -158,6 +166,27 @@ def standoffs_ring(bodies):
     return []
 
 
+def washer_ring(bodies):
+    """Шайба M4 на оси каждой Стойки не ближе WASHER_TO_RING_GAP к резьбовому кольцу.
+
+    Шайба под Полкой Нижней Тарелки — круг WASHER_DIAMETER в плане, кольцо —
+    до наружной стенки. Считается из параметров Скелета, как Стойки↔кольцо:
+    bodies не нужны.
+    """
+    ring = params.THREAD_DIAMETER / 2 + params.THREAD_RING_WALL
+    gaps = []
+    for center in standoff_centers():
+        gaps.append(center.Length - params.WASHER_DIAMETER / 2 - ring)
+    gap = round(min(gaps), 2)
+    minimum = params.WASHER_TO_RING_GAP
+    if gap < minimum:
+        return [
+            f"{BOTTOM_DISH}: шайба M4 ↔ резьбовое кольцо ≥ {minimum:g} мм"
+            f" — {gap:.2f} мм",
+        ]
+    return []
+
+
 def clearance(bodies):
     """Просвет между соседними телами стопки не меньше DISH_MIN_CLEARANCE.
 
@@ -189,7 +218,7 @@ def clearance(bodies):
 
 
 # bodies → список ошибок, как в checks.py
-CHECKS = [standoffs_ring, shadow, clearance]
+CHECKS = [standoffs_ring, washer_ring, shadow, clearance]
 
 
 def build(doc):
