@@ -1,3 +1,4 @@
+import math
 import unittest
 from unittest import mock
 
@@ -7,7 +8,7 @@ import Part
 import scene
 import skeleton
 import stack
-from checks import check
+from checks import MAX_OVERLAP, check
 from skeleton import params
 
 V = FreeCAD.Vector
@@ -127,6 +128,27 @@ class SkeletonTest(unittest.TestCase):
             errors += check_fn(bodies)
 
         self.assertError(errors, "просвет", "Тарелка 2", "Тарелка 3", "5.00 мм")
+
+    def test_lid_takes_m6_nut_from_below_under_5_mm_of_plastic(self):
+        lid = stack.lid()
+        # гайка M6: под ключ 10, высота 5; верх — на 5 мм под Точкой подвеса
+        corner = 5 / math.cos(math.radians(30))
+        corners = []
+        for i in range(7):
+            angle = math.radians(60 * i)
+            corners.append(V(
+                corner * math.cos(angle),
+                corner * math.sin(angle),
+                -10,
+            ))
+        nut = Part.Face(Part.makePolygon(corners)).extrude(V(0, 0, 5))
+        bolt = Part.makeCylinder(3, 12, V(0, 0, -11))
+        cover = Part.makeCylinder(5, 5, V(0, 0, -5)).cut(
+            Part.makeCylinder(3.5, 5, V(0, 0, -5)),
+        )
+
+        self.assertLess(lid.common(nut.fuse(bolt)).Volume, MAX_OVERLAP)
+        self.assertAlmostEqual(lid.common(cover).Volume, cover.Volume, places=2)
 
     def test_pitch_12_breaks_clearance(self):
         with mock.patch.dict(vars(params), {"DISH_PITCH": 12}):

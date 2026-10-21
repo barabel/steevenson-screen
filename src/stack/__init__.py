@@ -122,10 +122,52 @@ def bottom_dish():
     return stud_holes(body).removeSplitter()
 
 
+def nut_socket(top):
+    """Бобышка и вырез гнезда под гайку M6 на оси Щита, верх Крышки на top.
+
+    Вырез — шестигранник, открытый вниз, углом на +X, и отверстие под болт
+    подвеса насквозь через верх. Над шестигранником HANG_NUT_COVER пластика.
+    Низ бобышки — на краю шестигранника, верх — в середине Полки: сливается
+    с ней без совпадающих граней. Возвращает (бобышка, вырез).
+    """
+    clearance = params.HANG_CLEARANCE
+    corner = (params.HANG_NUT_WIDTH / 2 + clearance) / math.cos(math.radians(30))
+    ceiling = top - params.HANG_NUT_COVER
+    bottom = ceiling - params.HANG_NUT_HEIGHT - clearance
+    boss = Part.makeCylinder(
+        corner + params.HANG_BOSS_WALL,
+        top - params.DISH_WALL / 2 - bottom,
+        V(0, 0, bottom),
+        Z,
+    )
+    corners = []
+    for i in range(7):
+        angle = math.radians(60 * i)
+        corners.append(V(
+            corner * math.cos(angle),
+            corner * math.sin(angle),
+            bottom - BEYOND,
+        ))
+    hexagon = Part.Face(Part.makePolygon(corners)).extrude(
+        V(0, 0, ceiling - bottom + BEYOND),
+    )
+    bolt = Part.makeCylinder(
+        params.HANG_BOLT_DIAMETER / 2 + clearance,
+        top - ceiling + 2 * BEYOND,
+        V(0, 0, ceiling - BEYOND),
+        Z,
+    )
+    return boss, hexagon.fuse(bolt)
+
+
 def lid():
-    """Крышка: Полка сплошная до оси, верх плоский в Точке подвеса; Стойки до Тарелки 1."""
+    """Крышка: Полка сплошная до оси, верх плоский в Точке подвеса; Стойки до Тарелки 1.
+
+    Снизу в центре — бобышка с гнездом под гайку M6 болта подвеса.
+    """
     top = params.dish_top(0)
-    body = profile(top, 0).fuse(standoffs(top))
+    boss, socket = nut_socket(top)
+    body = profile(top, 0).fuse(standoffs(top) + [boss]).cut(socket)
     return stud_holes(body).removeSplitter()
 
 
