@@ -11,6 +11,8 @@ import Part
 from checks import MAX_OVERLAP
 from skeleton import BEYOND, BOTTOM_DISH, LID, params, revolved
 
+from .shadow import shadow
+
 V = FreeCAD.Vector
 Z = V(0, 0, 1)
 
@@ -157,7 +159,7 @@ def standoffs_ring(bodies):
 
 
 # bodies → список ошибок, как в checks.py
-CHECKS = [standoffs_ring]
+CHECKS = [standoffs_ring, shadow]
 
 
 def build(doc):
