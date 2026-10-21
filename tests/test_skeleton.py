@@ -96,6 +96,7 @@ class SkeletonTest(unittest.TestCase):
         cases = {
             "по умолчанию": {},
             "N + 1": {"DISH_COUNT": params.DISH_COUNT + 1},
+            "Ø 160": {"DISH_DIAMETER": 160},
         }
         for name, changes in cases.items():
             with self.subTest(name):
@@ -106,8 +107,23 @@ class SkeletonTest(unittest.TestCase):
 
     def test_smaller_dish_gives_shorter_bracket_reach(self):
         reach = params.bracket_reach()
-        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
             self.assertLess(params.bracket_reach(), reach)
+
+    def test_dish_140_breaks_shadow(self):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Заглушка", "тень")
+
+    def test_shelf_wider_than_dish_names_diameter_and_shelf(self):
+        with mock.patch.dict(vars(params), {"DISH_DIAMETER": 120}):
+            with self.assertRaises(ValueError) as caught:
+                scene_errors()
+
+        message = str(caught.exception)
+        for word in ["Ø", "120", "Полк", "62"]:
+            self.assertIn(word, message)
 
     def test_holder_wider_than_bottom_dish_hole(self):
         ring = Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5))
@@ -139,3 +155,10 @@ class SkeletonTest(unittest.TestCase):
             errors = scene_errors()
 
         self.assertError(errors, "просвет", "мм")
+
+    def test_drip_8_mm_below_shelf_breaks_clearance(self):
+        with mock.patch.dict(vars(params), {"DRIP_DROP": 8}):
+            errors = scene_errors()
+
+        # у Нижней Тарелки Полка до Ø отверстия, под низом Капельника: 16 − 2 − 8
+        self.assertError(errors, "просвет", "Нижняя Тарелка", "6.00 мм")

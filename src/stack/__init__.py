@@ -18,11 +18,13 @@ V = FreeCAD.Vector
 Z = V(0, 0, 1)
 
 
-def profile(top, hole):
+def profile(top, hole, drip=False):
     """Тело вращения Тарелки: Полка от радиуса hole и конус от её наружного края.
 
     Верх Полки — на высоте top. Конус идёт вниз и наружу под CONE_ANGLE;
     его нижняя поверхность встречает низ Полки чуть внутри её края.
+    С drip у отверстия — Капельник: его нижний край на радиусе hole,
+    Полка начинается от его верхнего края.
     """
     shelf = params.SHELF_RADIUS
     outer = params.DISH_DIAMETER / 2
@@ -30,14 +32,27 @@ def profile(top, hole):
     wall = params.DISH_WALL
     cone_wall = params.cone_wall_height()
     inner = shelf - (cone_wall - wall) / math.tan(math.radians(params.CONE_ANGLE))
+    if drip:
+        drop = wall + params.DRIP_DROP
+        inset = params.DRIP_INSET
+        # низ Капельника шириной в стенку по нормали к его наклону
+        tip = hole + wall * math.hypot(inset, drop) / drop
+        start = hole + inset
+        lip = [
+            (tip + (drop - wall) * inset / drop, top - wall),
+            (tip, top - drop),
+            (hole, top - drop),
+        ]
+    else:
+        start = hole
+        lip = [(hole, top - wall)]
     return revolved([
-        (hole, top),
+        (start, top),
         (shelf, top),
         (outer, top - rise),
         (outer, top - rise - cone_wall),
         (inner, top - wall),
-        (hole, top - wall),
-    ])
+    ] + lip)
 
 
 def standoff_centers():
@@ -94,7 +109,7 @@ def stud_holes(shape):
 def dish(index):
     """Тарелка index (1…DISH_COUNT − 1) со Стойками до Полки соседней снизу."""
     top = params.dish_top(index)
-    body = profile(top, params.DISH_HOLE_DIAMETER / 2).fuse(standoffs(top))
+    body = profile(top, params.DISH_HOLE_DIAMETER / 2, drip=True).fuse(standoffs(top))
     return stud_holes(body).removeSplitter()
 
 
