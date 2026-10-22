@@ -8,7 +8,6 @@ import bracket
 import stack
 from checks import MAX_OVERLAP
 from skeleton import BEYOND, params
-from test_skeleton import scene_errors
 
 V = FreeCAD.Vector
 
@@ -79,8 +78,8 @@ class BesideShieldTest(BracketTestCase):
     """Проверка «сбоку от Щита пусто» на подставных телах."""
 
     def test_turn_with_post_down_is_beside_shield(self):
-        # переворот вокруг оси плеча: стойка 150 мм уходит вниз,
-        # её низ — на 150 − 4 (толщина плеча) = 146 мм ниже низа плеча
+        # переворот вокруг оси плеча: стойка 40 мм уходит вниз,
+        # её низ — на 40 − 2 (толщина плеча) = 38 мм ниже низа плеча
         center = V(0, 0, params.SPACER_HEIGHT + params.TURN_THICKNESS / 2)
         post_down = bracket.turn()
         post_down.rotate(center, V(1, 0, 0), 180)
@@ -88,7 +87,7 @@ class BesideShieldTest(BracketTestCase):
 
         errors = bracket_errors(bodies)
 
-        self.assertError(errors, "Поворот", "сбоку от Щита", "146.00 мм")
+        self.assertError(errors, "Поворот", "сбоку от Щита", "38.00 мм")
         for error in errors:
             self.assertNotIn("пусто", error)  # ошибка — тело есть, не «пусто»
 
@@ -134,22 +133,37 @@ class WrenchTest(BracketTestCase):
 
         self.assertEqual(bracket.wrench_reaches_bolt(bodies), [])
 
-    def test_brace_landing_90_mm_from_jamb_blocks_wrench(self):
-        # до оси Щита 10 мм: подкос заходит в зону ключа r25
-        with mock.patch.dict(vars(params), {"BRACE_ARM_REACH": 90}):
-            errors = scene_errors()
+    def test_wrench_zone_105_reaches_post(self):
+        # стойка — от r98 до r100 по X: зона r105 заходит в неё
+        with mock.patch.dict(vars(params), {"WRENCH_RADIUS": 105}):
+            errors = bracket_errors(bracket.shapes())
 
         self.assertError(errors, "Поворот", "ключ", "болт подвеса")
 
-    def test_brace_landing_75_mm_from_jamb_only_touches_wrench_zone(self):
-        with mock.patch.dict(vars(params), {"BRACE_ARM_REACH": 75}):
-            errors = scene_errors()
+    def test_wrench_zone_98_only_touches_post(self):
+        # 98 — до внутренней грани стойки: касание по границе
+        with mock.patch.dict(vars(params), {"WRENCH_RADIUS": 98}):
+            errors = bracket_errors(bracket.shapes())
 
         wrench_errors = []
         for error in errors:
             if "ключ" in error:
                 wrench_errors.append(error)
         self.assertEqual(wrench_errors, [])
+
+
+class SpacerWasherTest(BracketTestCase):
+    """Проставка ↔ шайбы M4 Шпилек на верху Крышки."""
+
+    def test_spacer_105_covers_stud_washers(self):
+        # край Проставки r52.5, шайба M4 Ø9 на r56 — от r51.5: заходит на 1 мм
+        with mock.patch.dict(vars(params), {"SPACER_DIAMETER": 105}):
+            errors = bracket_errors(bracket.shapes())
+
+        self.assertError(errors, "Проставка", "шайба M4", "-1.00 мм")
+
+    def test_default_spacer_clears_stud_washers(self):
+        self.assertEqual(bracket.spacer_washers({}), [])
 
 
 class SpacerTest(unittest.TestCase):

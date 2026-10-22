@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поворот из KUL</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: сцена слева во всю высоту, узкая панель справа; на телефоне — друг под другом */
+:root {
+  --bg: #eceee9;
+  --panel: #f8f9f6;
+  --fg: #22262a;
+  --muted: #5d656c;
+  --line: #d3d7cf;
+  --accent: #b5532c;
+  --scene: #dfe3dc;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1e1c;
+    --panel: #232724;
+    --fg: #e6e8e3;
+    --muted: #a3aaa4;
+    --line: #3a403b;
+    --accent: #e08a62;
+    --scene: #2a2f2b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1e1c;
+  --panel: #232724;
+  --fg: #e6e8e3;
+  --muted: #a3aaa4;
+  --line: #3a403b;
+  --accent: #e08a62;
+  --scene: #2a2f2b;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  box-sizing: border-box;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+h1 { font-size: 18px; margin: 0; font-weight: 600; }
+header .sub { color: var(--muted); font-size: 13px; }
+main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+}
+#view {
+  position: relative;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--scene);
+}
+#view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#hint { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: var(--muted); pointer-events: none; }
+aside {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  min-width: 0;
+}
+.group { display: flex; flex-direction: column; gap: 8px; }
+.cap { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.seg.three { grid-template-columns: 1fr 1fr 1fr; }
+.seg button {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.range { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+label.range .row { display: flex; justify-content: space-between; gap: 8px; }
+label.range output { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+dt.total, dd.total { color: var(--fg); font-weight: 600; }
+.legend { display: grid; grid-template-columns: 14px 1fr; gap: 6px 8px; font-size: 13px; align-items: center; }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); }
+.note { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 0; }
+@media (max-width: 760px) {
+  body { height: auto; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  #view { height: 62vh; min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Поворот из KUL</h1>
+  <div class="sub">Уголок 40×40×2 вдоль Откоса, Поворот — анкерный уголок KUL 40×200×40 без подкоса. Мм, размеры примерные.</div>
+</header>
+
+<main>
+  <div id="view">
+    <div id="hint">мышь — вращать, колесо — приблизить, правая кнопка — сдвинуть</div>
+  </div>
+
+  <aside>
+    <div class="group">
+      <div class="cap">Камера</div>
+      <div class="seg three" id="cams">
+        <button type="button" data-c="iso" aria-pressed="true">3D</button>
+        <button type="button" data-c="cut" aria-pressed="false">Разрез</button>
+        <button type="button" data-c="joint" aria-pressed="false">Стык</button>
+      </div>
+      <div class="note">
+        «Разрез» — стоишь на улице лицом к стене, всё ближе к тебе, чем ось Щита, срезано. Окно слева, Щит справа.
+        «Стык» — стойка KUL на вертикальной полке Уголка, вид из угла над плечом.
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="cap">Проставка</div>
+      <div class="seg" id="spacer">
+        <button type="button" data-d="40" aria-pressed="false">Ø40, сейчас</button>
+        <button type="button" data-d="95" aria-pressed="true">Ø95, у Стоек</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="cap">Ветер вдоль плеча — худшее направление</div>
+      <label class="range" for="wind">
+        <span class="row"><span>Скорость</span><output id="wind-out"></output></span>
+        <input id="wind" type="range" min="0" max="35" step="1" value="15">
+      </label>
+      <dl>
+        <dt>Сила на Щит (вес ~5 Н)</dt><dd id="r-force"></dd>
+        <dt>Низ Щита уходит: плечо KUL</dt><dd id="r-arm"></dd>
+        <dt>…кручение Уголка</dt><dd id="r-angle"></dd>
+        <dt>…Крышка гнётся</dt><dd id="r-lid"></dd>
+        <dt class="total">…всего</dt><dd class="total" id="r-total"></dd>
+        <dt>Сталь KUL у сгиба (текучесть ~235)</dt><dd id="r-s-arm"></dd>
+        <dt>Сталь Уголка (текучесть ~235)</dt><dd id="r-s-angle"></dd>
+        <dt>PETG Крышки (прочность ~50)</dt><dd id="r-s-lid"></dd>
+      </dl>
+      <p class="note">
+        Грубая оценка формулами сопромата, не расчёт. Щит Ø154 × ~150 в профиль, Cx 1.2, центр давления
+        в 70 под верхом Крышки. KUL и Уголок — сталь 2 мм; вылет Уголка от последнего анкера 290.
+        Крышка — кольцо PETG 2 мм между краем Проставки и Стойками r56, точность ±2 раза.
+        Ветер от улицы даёт меньше. Перемещения от веса постоянны и сюда не входят.
+      </p>
+    </div>
+
+    <div class="group">
+      <div class="cap">Цвета</div>
+      <div class="legend">
+        <span class="sw" style="background:#7d858d"></span><span>Уголок — профиль 40×40×2 вдоль Откоса</span>
+        <span class="sw" style="background:#3f78b5"></span><span>Поворот — KUL: стойка 40, плечо 200</span>
+        <span class="sw" style="background:#d9a441"></span><span>Проставка (печатная)</span>
+        <span class="sw" style="background:#f6f6f1"></span><span>Щит</span>
+        <span class="sw" style="background:#2b2e31"></span><span>болты, гайки, анкеры</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// Оси: x — вправо (из комнаты на улицу), y — вверх, z — на улицу. Фасад — z = 0,
+// плоскость Откоса — x = 0 (кирпич при x > 0, проём при x < 0). y = 0 — низ плеча KUL.
+const SHIFT = 100; // ось Щита от плоскости Откоса
+const AZ = 150 + 77; // ось Щита от Фасада
+const JAMB_DEPTH = 120;
+const LEG = 40; // полки Уголка; стойка и ширина KUL
+const T = 2; // толщина Уголка и KUL
+const ARM_LEN = 200; // плечо KUL
+const KUL_W = 40;
+const JOINT_BOLTS = [10, 28]; // болты KUL↔Уголок: над верхом плеча
+const SPACER = 20;
+const SLOT_WALL = 3;
+const STUD_R = 56; // Стойки и гайки Шпилек на Крышке
+const WASHER_R = 4.5; // шайба M4
+const DISH_R = 77;
+const LEDGE_R = 62;
+const HOLE_R = 38;
+const CONE_H = 15;
+const DISH_COUNT = 7;
+const PITCH = 16;
+const BOLT_R = 3;
+const HEX_R = 10 / Math.sqrt(3);
+const SHIELD_TOP = -SPACER;
+const SHIELD_BOTTOM = SHIELD_TOP - DISH_COUNT * PITCH - CONE_H - 28;
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(22, 1, 10, 20000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x80806f, 0.85));
+const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+sun.position.set(-700, 1500, 1800);
+scene.add(sun);
+
+const mats = {
+  brick: new THREE.MeshStandardMaterial({ color: 0xcdbb9c, roughness: 0.95 }),
+  jamb: new THREE.MeshStandardMaterial({ color: 0xe39a6e, roughness: 0.9 }),
+  frame: new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 }),
+  angle: new THREE.MeshStandardMaterial({ color: 0x7d858d, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide }),
+  kul: new THREE.MeshStandardMaterial({ color: 0x3f78b5, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide }),
+  bolt: new THREE.MeshStandardMaterial({ color: 0x2b2e31, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide }),
+  spacer: new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.7, side: THREE.DoubleSide }),
+  shield: new THREE.MeshStandardMaterial({ color: 0xf6f6f1, roughness: 0.7, side: THREE.DoubleSide }),
+};
+const leaderMat = new THREE.LineBasicMaterial({ color: 0x22262a, depthTest: false });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x33352f, transparent: true, opacity: 0.4 });
+
+function box(x0, x1, y0, y1, z0, z1, mat, parent) {
+  const geo = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+  parent.add(mesh);
+  return mesh;
+}
+
+// Цилиндр вдоль y (p, q — x, z) или вдоль x (p, q — y, z).
+function cylinder(r, a0, a1, p, q, mat, parent, axis = 'y', segments = 24) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a1 - a0, segments), mat);
+  if (axis === 'y') {
+    mesh.position.set(p, (a0 + a1) / 2, q);
+  } else {
+    mesh.rotation.z = Math.PI / 2;
+    mesh.position.set((a0 + a1) / 2, p, q);
+  }
+  parent.add(mesh);
+}
+
+// Подпись-спрайт; target — точка, к которой тянется выноска.
+function label(text, x, y, z, parent, target = null, scale = 0.24) {
+  const font = '600 34px system-ui, sans-serif';
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 26;
+  const h = 52;
+  c.width = w;
+  c.height = h;
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(10, 0);
+  ctx.arcTo(w, 0, w, h, 10);
+  ctx.arcTo(w, h, 0, h, 10);
+  ctx.arcTo(0, h, 0, 0, 10);
+  ctx.arcTo(0, 0, w, 0, 10);
+  ctx.fill();
+  ctx.fillStyle = '#22262a';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 13, h / 2 + 1);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  sprite.scale.set(w * scale, h * scale, 1);
+  sprite.position.set(x, y, z);
+  sprite.renderOrder = 10;
+  parent.add(sprite);
+  if (target) {
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, z), target]),
+      leaderMat,
+    );
+    line.renderOrder = 9;
+    parent.add(line);
+  }
+}
+
+// Стена: кирпич справа от проёма, Откос — его торец x = 0, рама в глубине проёма.
+const fixed = new THREE.Group();
+scene.add(fixed);
+box(0, 450, -400, 250, -400, 0, mats.brick, fixed);
+box(-1, 0, -400, 250, -JAMB_DEPTH, 0, mats.jamb, fixed);
+box(-350, 0, -400, 250, -JAMB_DEPTH - 70, -JAMB_DEPTH, mats.frame, fixed);
+
+// Железо: от размера Проставки не зависит.
+const steel = new THREE.Group();
+scene.add(steel);
+const angleBottom = T; // низ вертикальной полки Уголка — на верхе плеча
+const angleTop = angleBottom + LEG;
+const za = AZ - KUL_W / 2;
+const zb = AZ + KUL_W / 2;
+
+// Уголок: вертикальная полка прижата к Откосу со стороны проёма, горизонтальная — сверху, в проём.
+box(-T, 0, angleBottom, angleTop, -JAMB_DEPTH + 20, zb, mats.angle, steel);
+box(-LEG, 0, angleTop - T, angleTop, -JAMB_DEPTH + 20, zb, mats.angle, steel);
+[-90, -45].forEach((z) => {
+  cylinder(6, -T - 4, -T, angleBottom + LEG / 2, z, mats.bolt, steel, 'x', 16);
+});
+
+// KUL: стойка — по плоскости Откоса с другой стороны от полки Уголка, плечо — внизу, вбок.
+box(0, T, 0, LEG, za, zb, mats.kul, steel);
+box(0, ARM_LEN, 0, T, za, zb, mats.kul, steel);
+
+// Болты KUL↔Уголок: головки внутри Уголка, шайбы и гайки — в углу над плечом.
+JOINT_BOLTS.forEach((dy) => {
+  const y = T + dy;
+  cylinder(HEX_R, -T - 4, -T, y, AZ, mats.bolt, steel, 'x', 6);
+  cylinder(BOLT_R, -T - 4, T + 9, y, AZ, mats.bolt, steel, 'x', 16);
+  cylinder(6, T, T + 1.6, y, AZ, mats.bolt, steel, 'x', 24);
+  cylinder(HEX_R, T + 1.6, T + 6.6, y, AZ, mats.bolt, steel, 'x', 6);
+});
+
+// Болт подвеса M6: сверху через плечо и Проставку в гайку в Крышке.
+cylinder(BOLT_R, SHIELD_TOP - 10, T + 4, SHIFT, AZ, mats.bolt, steel, 'y', 16);
+cylinder(HEX_R, T, T + 4, SHIFT, AZ, mats.bolt, steel, 'y', 6);
+
+// Щит и гайки Шпилек на верху Крышки.
+function lathe(points, y) {
+  const geo = new THREE.LatheGeometry(points.map(([r, h]) => {
+    return new THREE.Vector2(r, h);
+  }), 64);
+  const mesh = new THREE.Mesh(geo, mats.shield);
+  mesh.position.set(SHIFT, y, AZ);
+  steel.add(mesh);
+}
+lathe([[0, 0], [LEDGE_R, 0], [DISH_R, -CONE_H]], SHIELD_TOP);
+for (let i = 1; i <= DISH_COUNT; i++) {
+  lathe([[HOLE_R, 0], [LEDGE_R, 0], [DISH_R, -CONE_H]], SHIELD_TOP - i * PITCH);
+}
+const stackBottom = SHIELD_TOP - DISH_COUNT * PITCH;
+for (let k = 0; k < 4; k++) {
+  const a = Math.PI / 4 + k * Math.PI / 2;
+  const x = SHIFT + STUD_R * Math.cos(a);
+  const z = AZ + STUD_R * Math.sin(a);
+  cylinder(5, stackBottom, SHIELD_TOP, x, z, mats.shield, steel);
+  cylinder(WASHER_R, SHIELD_TOP, SHIELD_TOP + 1, x, z, mats.bolt, steel, 'y', 16);
+  cylinder(7 / Math.sqrt(3), SHIELD_TOP + 1, SHIELD_TOP + 4, x, z, mats.bolt, steel, 'y', 6);
+}
+cylinder(49, SHIELD_BOTTOM, stackBottom, SHIFT, AZ, mats.shield, steel);
+
+// Проставка: перестраивается при смене Ø.
+const printed = new THREE.Group();
+scene.add(printed);
+let spacerD = 95;
+
+// Плоский контур, вытянутый вверх на h от y.
+function extrudeUp(shape, h, y) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: 48 });
+  const mesh = new THREE.Mesh(g, mats.spacer);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(SHIFT, y, AZ);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), edgeMat));
+  printed.add(mesh);
+}
+
+// Проставка с отверстием под болт, сверху паз под плечо — стенки по бокам плеча.
+// Контур в плоскости XY шейпа: x — по x сцены, y шейпа — против z сцены.
+function buildSpacer() {
+  printed.clear();
+  const r = spacerD / 2;
+  const body = new THREE.Shape();
+  body.absarc(0, 0, r, 0, Math.PI * 2, false);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, BOLT_R + 0.25, 0, Math.PI * 2, true);
+  body.holes.push(hole);
+  extrudeUp(body, SPACER, SHIELD_TOP);
+  const half = KUL_W / 2 + 0.25;
+  [1, -1].forEach((side) => {
+    const wall = new THREE.Shape();
+    const a = Math.asin(half / r);
+    const start = side > 0 ? a : Math.PI + a;
+    wall.absarc(0, 0, r, start, start + Math.PI - 2 * a, false);
+    wall.closePath();
+    extrudeUp(wall, SLOT_WALL, 0);
+  });
+}
+
+// Подписи. В разрезе видно всё за плоскостью z = AZ; подписи — чуть за ней.
+const labels = new THREE.Group();
+scene.add(labels);
+const zl = AZ - 25;
+function at(x, y, z = zl) {
+  return new THREE.Vector3(x, y, z);
+}
+label('Уголок: горизонтальная полка', -110, 95, zl, labels, at(-25, angleTop - 1));
+label('Уголок: вертикальная полка', -110, 65, zl, labels, at(-1, angleBottom + 30));
+label('болты M6 KUL ↔ Уголок', -110, -15, zl, labels, at(-T - 2, T + JOINT_BOLTS[0]));
+label('KUL: стойка 40', -110, 20, zl, labels, at(T, 25));
+label('KUL: плечо 200', 230, 45, zl, labels, at(170, 1));
+label('болт подвеса M6', 230, 15, zl, labels, at(SHIFT + 3, T + 2));
+label('Проставка', 230, -15, zl, labels, at(SHIFT + 30, -8));
+label('гайки Шпилек', 230, -45, zl, labels, at(SHIFT + 42, SHIELD_TOP + 2, AZ - 40));
+label('Крышка', 230, -75, zl, labels, at(SHIFT + 66, SHIELD_TOP - 3));
+label('плоскость Откоса', 0, 150, zl, labels);
+label('Фасад', 250, 150, 0, labels);
+
+let camMode = 'iso';
+
+function placeCamera() {
+  renderer.clippingPlanes = camMode === 'cut' ? [new THREE.Plane(new THREE.Vector3(0, 0, -1), AZ)] : [];
+  labels.visible = camMode !== 'joint'; // в крупном плане подписи закрывают стык
+  if (camMode === 'cut') {
+    camera.position.set(60, -40, AZ + 1000);
+    controls.target.set(60, -40, AZ);
+  } else if (camMode === 'joint') {
+    camera.position.set(260, 180, AZ + 240);
+    controls.target.set(10, 15, AZ);
+  } else {
+    camera.position.set(-750, 420, 1100);
+    controls.target.set(40, -40, 130);
+  }
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// Оценка: те же формулы, что в разговоре о ветре; см. примечание в панели.
+const E = 200000;
+const G = 80000;
+const E_PETG = 2000;
+const NU_PETG = 0.38;
+const AREA = 0.154 * 0.13 + 0.098 * 0.028; // м²
+const WEIGHT = 5; // Н
+const PRESSURE_DEPTH = 70; // центр давления под верхом Крышки
+const ANGLE_FREE = 290; // вылет Уголка от последнего анкера
+const ANGLE_CORNER = angleTop; // ось кручения Уголка — у его угла, над плечом
+
+function estimate(v) {
+  const force = 0.5 * 1.225 * v * v * 1.2 * AREA;
+  const lever = SPACER + T / 2 + PRESSURE_DEPTH;
+  const moment = force * lever;
+  const shieldDrop = -SHIELD_BOTTOM; // от низа плеча до низа Щита
+  // Плечо KUL: консоль от стойки до болта, изгиб плашмя.
+  const armI = KUL_W * T ** 3 / 12;
+  const armTilt = moment * SHIFT / (E * armI);
+  const armStress = (moment + WEIGHT * SHIFT) / (KUL_W * T * T / 6);
+  // Уголок: открытый профиль, кручение на вылете.
+  const angleJ = 2 * LEG * T ** 3 / 3;
+  const torque = force * (lever + ANGLE_CORNER);
+  const angleTilt = torque * ANGLE_FREE / (G * angleJ);
+  const angleStress = (torque + WEIGHT * SHIFT) * T / angleJ;
+  // Крышка: радиальные полосы от края Проставки a до Стоек b, ширина — средняя.
+  const a = Math.min(spacerD / 2, STUD_R - WASHER_R - 1);
+  const b = STUD_R;
+  const l = b - a;
+  const plate = E_PETG * T ** 3 / (12 * (1 - NU_PETG ** 2));
+  const widen = (a + b) / 2 / a;
+  const terms = a * a / l ** 3 + 2 * a / l ** 2 + 1 / l;
+  const lidK = 3 * Math.PI * plate * a * widen * terms;
+  const lidTilt = moment / lidK;
+  const bendShare = (a / l ** 2 + 1 / l) / terms;
+  const lidStress = 6 * bendShare * moment / (Math.PI * a * widen) / (T * T);
+  const arm = armTilt * shieldDrop;
+  const angle = angleTilt * (shieldDrop + ANGLE_CORNER);
+  const lid = lidTilt * (shieldDrop - SPACER);
+  return { force, arm, angle, lid, armStress, angleStress, lidStress };
+}
+
+const ui = { wind: document.getElementById('wind') };
+
+function mm(x) {
+  return `${x.toFixed(1)} мм`;
+}
+
+function mpa(x) {
+  return `${x.toFixed(0)} МПа`;
+}
+
+function update() {
+  const v = Number(ui.wind.value);
+  const r = estimate(v);
+  document.getElementById('wind-out').textContent = `${v} м/с`;
+  document.getElementById('r-force').textContent = `${r.force.toFixed(1)} Н`;
+  document.getElementById('r-arm').textContent = mm(r.arm);
+  document.getElementById('r-angle').textContent = mm(r.angle);
+  document.getElementById('r-lid').textContent = mm(r.lid);
+  document.getElementById('r-total').textContent = mm(r.arm + r.angle + r.lid);
+  document.getElementById('r-s-arm').textContent = mpa(r.armStress);
+  document.getElementById('r-s-angle').textContent = mpa(r.angleStress);
+  document.getElementById('r-s-lid').textContent = mpa(r.lidStress);
+}
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+function applyTheme() {
+  const css = getComputedStyle(document.documentElement);
+  scene.background = new THREE.Color(css.getPropertyValue('--scene').trim());
+  render();
+}
+
+function resize() {
+  const w = view.clientWidth;
+  const h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  render();
+}
+
+function segment(id, onPick) {
+  document.getElementById(id).addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) {
+      return;
+    }
+    document.querySelectorAll(`#${id} button`).forEach((b) => {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+    onPick(btn);
+  });
+}
+
+segment('cams', (btn) => {
+  camMode = btn.dataset.c;
+  placeCamera();
+  render();
+});
+segment('spacer', (btn) => {
+  spacerD = Number(btn.dataset.d);
+  buildSpacer();
+  update();
+  render();
+});
+ui.wind.addEventListener('input', update);
+
+controls.addEventListener('change', render);
+new ResizeObserver(resize).observe(view);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// #cut-40 и т.п.: камера и Ø Проставки из адреса
+const [hashCam, hashSpacer] = location.hash.slice(1).split('-');
+if (hashCam) {
+  document.querySelector(`#cams [data-c="${hashCam}"]`).click();
+}
+if (hashSpacer) {
+  document.querySelector(`#spacer [data-d="${hashSpacer}"]`).click();
+}
+buildSpacer();
+placeCamera();
+update();
+applyTheme();
+resize();
+</script>
+</body>
+</html>
