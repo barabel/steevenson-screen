@@ -130,8 +130,11 @@ def add_shapes(parent, shapes, color):
     material.diffuseColor.setValue(coin.SbColor(*color))
     parent.addChild(material)
     for shape in shapes:
+        # setBuffer не копирует строку: без ссылки её освобождают до readAll,
+        # и Coin читает мусор — на больших телах (витки Дна) через раз
+        buffer = shape.writeInventor()
         node_input = coin.SoInput()
-        node_input.setBuffer(shape.writeInventor())
+        node_input.setBuffer(buffer)
         node = coin.SoDB.readAll(node_input)
         if node is None:
             raise RuntimeError("Coin не прочитал writeInventor() тела")

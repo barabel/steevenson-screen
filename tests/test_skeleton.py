@@ -154,6 +154,32 @@ class SkeletonTest(unittest.TestCase):
 
         self.assertError(errors, "выход вниз", "Нижняя Тарелка")
 
+    def test_floor_wider_than_bottom_dish_hole_screws_out(self):
+        # Дно выкручивается: его витки идут по виткам кольца, а не сквозь них
+        ring = Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5))
+        bodies = {
+            "Нижняя Тарелка": ring,
+            "Дно": Part.makeCylinder(35, 5, V(0, 0, 10)),
+            "Держатель": Part.makeBox(4, 4, 10, V(-2, -2, 15)),
+            "Заглушка": Part.makeBox(10, 10, 10, V(-5, -5, 25)),
+        }
+
+        errors = skeleton_errors(bodies)
+
+        self.assertEqual(errors, [])
+
+    def test_floor_wider_than_other_body_breaks_down_exit(self):
+        bodies = {
+            "Кронштейн": Part.makeCylinder(40, 5).cut(Part.makeCylinder(30, 5)),
+            "Дно": Part.makeCylinder(35, 5, V(0, 0, 10)),
+            "Держатель": Part.makeBox(4, 4, 10, V(-2, -2, 15)),
+            "Заглушка": Part.makeBox(10, 10, 10, V(-5, -5, 25)),
+        }
+
+        errors = skeleton_errors(bodies)
+
+        self.assertError(errors, "Дно", "выход вниз", "Кронштейн")
+
     def test_dishes_5_mm_apart_break_dish_gap(self):
         bodies = {
             "Тарелка 2": Part.makeCylinder(70, 2),
