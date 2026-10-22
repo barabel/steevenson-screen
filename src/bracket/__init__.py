@@ -9,9 +9,12 @@
 дальней от Фасада грани стойки, низ его вертикальной полки — на уровне верха
 плеча. Стойка касается вертикальной полки Уголка по плоскости Откоса.
 """
+import math
+
 import FreeCAD
 import Part
 
+from checks import MAX_OVERLAP
 from skeleton import params
 
 V = FreeCAD.Vector
@@ -53,6 +56,33 @@ def angle():
     return vertical.fuse(horizontal).removeSplitter()
 
 
+def brace():
+    """Подкос: полоса во внутреннем углу Поворота, от стойки к плечу.
+
+    Наружный край — от внутренней грани стойки на BRACE_POST_RISE над верхом
+    плеча до плеча в BRACE_ARM_REACH от плоскости Откоса; внутренний — к углу,
+    на толщину полосы. Подкос касается стойки и плеча гранями.
+    """
+    jamb = -params.JAMB_SHIFT
+    post_face = jamb + params.TURN_THICKNESS
+    bottom = arm_top()
+    top = bottom + params.BRACE_POST_RISE
+    foot = jamb + params.BRACE_ARM_REACH
+    run = foot - post_face
+    rise = params.BRACE_POST_RISE
+    slant = math.hypot(run, rise)
+    thickness = params.BRACE_THICKNESS
+    y = -params.BRACE_WIDTH / 2
+    outline = Part.makePolygon([
+        V(post_face, y, top),
+        V(foot, y, bottom),
+        V(foot - thickness * slant / rise, y, bottom),
+        V(post_face, y, top - thickness * slant / run),
+        V(post_face, y, top),
+    ])
+    return Part.Face(outline).extrude(V(0, params.BRACE_WIDTH, 0))
+
+
 def turn():
     """Поворот: стойка вверх от плеча, плечо — по центру оси Щита по Y.
 
@@ -81,7 +111,7 @@ def turn():
         V(0, 0, bottom),
         Z,
     )
-    return post.fuse(arm).removeSplitter().cut(hole)
+    return post.fuse(arm).removeSplitter().fuse(brace()).removeSplitter().cut(hole)
 
 
 def shapes():
@@ -92,8 +122,35 @@ def shapes():
     }
 
 
+def wrench_reaches_bolt(bodies):
+    """Ключ к болту: зона ключа над плечом не пересекается с Уголком и Поворотом.
+
+    Зона — цилиндр вокруг оси Щита от верха плеча вверх. Плечо касается её
+    снизу, подкос на пределе — по границе: это не пересечение. Нет тела или
+    оно null — молчит.
+    """
+    zone = Part.makeCylinder(
+        params.WRENCH_RADIUS,
+        params.WRENCH_HEIGHT,
+        V(0, 0, arm_top()),
+        Z,
+    )
+    errors = []
+    for name in (ANGLE, TURN):
+        shape = bodies.get(name)
+        if shape is None or shape.isNull():
+            continue
+        volume = shape.common(zone).Volume
+        if volume > MAX_OVERLAP:
+            errors.append(
+                f"{name}: закрывает болт подвеса, ключ не подлезет"
+                f" — в зоне ключа r{params.WRENCH_RADIUS:g} {volume:.2f} мм³",
+            )
+    return errors
+
+
 # bodies → список ошибок, как в checks.py; проверки Кронштейна — сюда
-CHECKS = []
+CHECKS = [wrench_reaches_bolt]
 
 
 def build(doc):
