@@ -18,7 +18,9 @@ from checks import MAX_OVERLAP
 from skeleton import params
 
 V = FreeCAD.Vector
+X = V(1, 0, 0)
 Z = V(0, 0, 1)
+BEYOND = 1  # вырез выходит за грани тела: без совпадающих граней
 
 ANGLE = "Уголок"
 TURN = "Поворот"
@@ -27,6 +29,39 @@ TURN = "Поворот"
 def arm_top():
     """Z верха плеча Поворота: низ плеча — на высоте проставки над Точкой подвеса."""
     return params.SPACER_HEIGHT + params.TURN_THICKNESS
+
+
+def bolt_holes():
+    """Отверстия под болты M6 Поворот↔Уголок: сквозь вертикальную полку Уголка и стойку."""
+    start = -params.JAMB_SHIFT - params.ANGLE_THICKNESS - BEYOND
+    depth = params.ANGLE_THICKNESS + params.TURN_THICKNESS + 2 * BEYOND
+    holes = []
+    for height in params.TURN_BOLT_HEIGHTS:
+        holes.append(
+            Part.makeCylinder(
+                params.TURN_BOLT_DIAMETER / 2,
+                depth,
+                V(start, 0, arm_top() + height),
+                X,
+            ),
+        )
+    return holes
+
+
+def nut_places():
+    """Места гаек с шайбами болтов Поворот↔Уголок: от внутренней стороны стойки к +X."""
+    inside = -params.JAMB_SHIFT + params.TURN_THICKNESS
+    places = []
+    for height in params.TURN_BOLT_HEIGHTS:
+        places.append(
+            Part.makeCylinder(
+                params.TURN_NUT_PLACE_DIAMETER / 2,
+                params.TURN_NUT_PLACE_DEPTH,
+                V(inside, 0, arm_top() + height),
+                X,
+            ),
+        )
+    return places
 
 
 def angle():
@@ -53,7 +88,8 @@ def angle():
         thickness,
         V(jamb - leg, start, bottom + leg - thickness),
     )
-    return vertical.fuse(horizontal).removeSplitter()
+    angle_shape = vertical.fuse(horizontal).removeSplitter()
+    return angle_shape.cut(bolt_holes())
 
 
 def brace():
@@ -111,7 +147,8 @@ def turn():
         V(0, 0, bottom),
         Z,
     )
-    return post.fuse(arm).removeSplitter().fuse(brace()).removeSplitter().cut(hole)
+    turn_shape = post.fuse(arm).removeSplitter().fuse(brace()).removeSplitter().cut(hole)
+    return turn_shape.cut(bolt_holes())
 
 
 def shapes():
@@ -120,6 +157,30 @@ def shapes():
         ANGLE: angle(),
         TURN: turn(),
     }
+
+
+def nuts_in_corner(bodies):
+    """Гайки в углу: место каждой гайки болтов Поворот↔Уголок свободно от Поворота и Уголка.
+
+    Нет Поворота или он null — молчит.
+    """
+    turn_shape = bodies.get(TURN)
+    if turn_shape is None or turn_shape.isNull():
+        return []
+    errors = []
+    for number, place in enumerate(nut_places(), 1):
+        for name in (TURN, ANGLE):
+            shape = bodies.get(name)
+            if shape is None or shape.isNull():
+                continue
+            hit = shape.common(place)
+            volume = 0 if hit.isNull() else hit.Volume  # мимо — null
+            if volume > MAX_OVERLAP:
+                errors.append(
+                    f"{name}: гайка {number} снизу болта {TURN}↔{ANGLE}"
+                    f" не встаёт в угол — в её месте {volume:.1f} мм³",
+                )
+    return errors
 
 
 def wrench_reaches_bolt(bodies):
@@ -150,7 +211,10 @@ def wrench_reaches_bolt(bodies):
 
 
 # bodies → список ошибок, как в checks.py; проверки Кронштейна — сюда
-CHECKS = [wrench_reaches_bolt]
+CHECKS = [
+    nuts_in_corner,
+    wrench_reaches_bolt,
+]
 
 
 def build(doc):
