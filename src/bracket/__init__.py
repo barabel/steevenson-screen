@@ -10,8 +10,6 @@
 плеча. Стойка касается вертикальной полки Уголка по плоскости Откоса.
 Проставка — между верхом Крышки и плечом, плечо лежит в её пазу.
 """
-import math
-
 import FreeCAD
 import Part
 
@@ -93,33 +91,6 @@ def angle():
     return angle_shape.cut(bolt_holes())
 
 
-def brace():
-    """Подкос: полоса во внутреннем углу Поворота, от стойки к плечу.
-
-    Наружный край — от внутренней грани стойки на BRACE_POST_RISE над верхом
-    плеча до плеча в BRACE_ARM_REACH от плоскости Откоса; внутренний — к углу,
-    на толщину полосы. Подкос касается стойки и плеча гранями.
-    """
-    jamb = -params.JAMB_SHIFT
-    post_face = jamb + params.TURN_THICKNESS
-    bottom = arm_top()
-    top = bottom + params.BRACE_POST_RISE
-    foot = jamb + params.BRACE_ARM_REACH
-    run = foot - post_face
-    rise = params.BRACE_POST_RISE
-    slant = math.hypot(run, rise)
-    thickness = params.BRACE_THICKNESS
-    y = -params.BRACE_WIDTH / 2
-    outline = Part.makePolygon([
-        V(post_face, y, top),
-        V(foot, y, bottom),
-        V(foot - thickness * slant / rise, y, bottom),
-        V(post_face, y, top - thickness * slant / run),
-        V(post_face, y, top),
-    ])
-    return Part.Face(outline).extrude(V(0, params.BRACE_WIDTH, 0))
-
-
 def turn():
     """Поворот: стойка вверх от плеча, плечо — по центру оси Щита по Y.
 
@@ -148,7 +119,7 @@ def turn():
         V(0, 0, bottom),
         Z,
     )
-    turn_shape = post.fuse(arm).removeSplitter().fuse(brace()).removeSplitter().cut(hole)
+    turn_shape = post.fuse(arm).removeSplitter().cut(hole)
     return turn_shape.cut(bolt_holes())
 
 
@@ -235,8 +206,7 @@ def wrench_reaches_bolt(bodies):
     """Ключ к болту: зона ключа над плечом не пересекается с Уголком и Поворотом.
 
     Зона — цилиндр вокруг оси Щита от верха плеча вверх. Плечо касается её
-    снизу, подкос на пределе — по границе: это не пересечение. Нет тела или
-    оно null — молчит.
+    снизу — это не пересечение. Нет тела или оно null — молчит.
     """
     zone = Part.makeCylinder(
         params.WRENCH_RADIUS,
@@ -256,11 +226,28 @@ def wrench_reaches_bolt(bodies):
     return errors
 
 
+def spacer_washers(bodies):
+    """Край Проставки не ближе SPACER_TO_WASHER_GAP к шайбам M4 Шпилек на верху Крышки.
+
+    Шайба — круг WASHER_DIAMETER в плане на оси Стойки. Считается из
+    параметров Скелета, как шайба↔кольцо стопки: bodies не нужны.
+    """
+    washer_edge = params.STANDOFF_RADIUS - params.WASHER_DIAMETER / 2
+    gap = round(washer_edge - params.SPACER_DIAMETER / 2, 2)
+    minimum = params.SPACER_TO_WASHER_GAP
+    if gap < minimum:
+        return [
+            f"{SPACER}: край ↔ шайба M4 Шпильки ≥ {minimum:g} мм — {gap:.2f} мм",
+        ]
+    return []
+
+
 # bodies → список ошибок, как в checks.py; проверки Кронштейна — сюда
 CHECKS = [
     nuts_in_corner,
     beside_shield,
     wrench_reaches_bolt,
+    spacer_washers,
 ]
 
 
