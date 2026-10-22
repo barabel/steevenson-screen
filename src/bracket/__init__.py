@@ -16,12 +16,11 @@ import FreeCAD
 import Part
 
 from checks import GAP_TOLERANCE, MAX_OVERLAP
-from skeleton import params
+from skeleton import BEYOND, params
 
 V = FreeCAD.Vector
 X = V(1, 0, 0)
 Z = V(0, 0, 1)
-BEYOND = 1  # вырез выходит за грани тела: без совпадающих граней
 
 ANGLE = "Уголок"
 TURN = "Поворот"
@@ -189,18 +188,24 @@ def shapes():
     }
 
 
+def angle_and_turn(bodies):
+    """Уголок и Поворот из bodies, кроме отсутствующих и null: список (метка, Shape)."""
+    result = []
+    for name in (ANGLE, TURN):
+        shape = bodies.get(name)
+        if shape is not None and not shape.isNull():
+            result.append((name, shape))
+    return result
+
+
 def beside_shield(bodies):
     """Сбоку от Щита пусто: низ Уголка и Поворота не ниже низа плеча."""
     errors = []
-    for name in (ANGLE, TURN):
-        shape = bodies.get(name)
-        if shape is None or shape.isNull():
-            continue
+    for name, shape in angle_and_turn(bodies):
         depth = params.SPACER_HEIGHT - shape.BoundBox.ZMin
         if depth > GAP_TOLERANCE:
             errors.append(
-                f"{name}: сбоку от Щита пусто"
-                f" — на {depth:.2f} мм ниже низа плеча",
+                f"{name}: сбоку от Щита — на {depth:.2f} мм ниже низа плеча",
             )
     return errors
 
@@ -215,10 +220,7 @@ def nuts_in_corner(bodies):
         return []
     errors = []
     for number, place in enumerate(nut_places(), 1):
-        for name in (TURN, ANGLE):
-            shape = bodies.get(name)
-            if shape is None or shape.isNull():
-                continue
+        for name, shape in angle_and_turn(bodies):
             hit = shape.common(place)
             volume = 0 if hit.isNull() else hit.Volume  # мимо — null
             if volume > MAX_OVERLAP:
@@ -243,11 +245,9 @@ def wrench_reaches_bolt(bodies):
         Z,
     )
     errors = []
-    for name in (ANGLE, TURN):
-        shape = bodies.get(name)
-        if shape is None or shape.isNull():
-            continue
-        volume = shape.common(zone).Volume
+    for name, shape in angle_and_turn(bodies):
+        hit = shape.common(zone)
+        volume = 0 if hit.isNull() else hit.Volume  # мимо — null
         if volume > MAX_OVERLAP:
             errors.append(
                 f"{name}: закрывает болт подвеса, ключ не подлезет"
