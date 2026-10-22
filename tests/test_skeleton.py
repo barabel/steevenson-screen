@@ -121,10 +121,10 @@ class SkeletonTest(unittest.TestCase):
 
                 self.assertEqual(errors, [])
 
-    def test_smaller_dish_gives_shorter_bracket_reach(self):
-        reach = params.bracket_reach()
+    def test_smaller_dish_gives_shorter_angle(self):
+        length = params.angle_length()
         with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
-            self.assertLess(params.bracket_reach(), reach)
+            self.assertLess(params.angle_length(), length)
 
     def test_dish_140_breaks_shadow(self):
         with mock.patch.dict(vars(params), {"DISH_DIAMETER": 140}):
