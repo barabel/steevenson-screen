@@ -91,6 +91,8 @@ class BesideShieldTest(unittest.TestCase):
         errors = bracket_errors(bodies)
 
         self.assertError(errors, "Поворот", "сбоку от Щита", "146.00 мм")
+        for error in errors:
+            self.assertNotIn("пусто", error)  # ошибка — тело есть, не «пусто»
 
     def test_beside_shield_is_silent_without_angle_and_turn(self):
         cases = {

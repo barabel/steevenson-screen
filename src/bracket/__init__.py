@@ -199,8 +199,7 @@ def beside_shield(bodies):
         depth = params.SPACER_HEIGHT - shape.BoundBox.ZMin
         if depth > GAP_TOLERANCE:
             errors.append(
-                f"{name}: сбоку от Щита пусто"
-                f" — на {depth:.2f} мм ниже низа плеча",
+                f"{name}: сбоку от Щита — на {depth:.2f} мм ниже низа плеча",
             )
     return errors
 
