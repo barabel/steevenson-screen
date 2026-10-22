@@ -40,6 +40,20 @@ class ShadowTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_hang_bolt_hole_over_plug_is_closed_by_nut(self):
+        # верх коробки — в Точке подвеса, сквозь него отверстие болта M6;
+        # гайка с болтом в гнезде под верхом закрывают его
+        lid = Part.makeBox(34, 34, 34, V(-17, -17, -34)).cut(
+            Part.makeBox(30, 30, 30, V(-15, -15, -32)),
+        )
+        hole = Part.makeCylinder(3.25, 4, V(0, 0, -3))
+        bodies = {
+            "Заглушка": Part.makeBox(10, 10, 5, V(-5, -5, -30)),
+            "Коробка": lid.cut(hole),
+        }
+
+        self.assertEqual(stack_errors(bodies), [])
+
     def test_no_plug_is_silent(self):
         cases = {
             "нет Заглушки": {"Коробка": closed_box()},
