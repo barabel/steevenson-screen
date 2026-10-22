@@ -200,7 +200,7 @@ dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; te
       <dl>
         <dt>Ось Щита за Фасадом</dt><dd id="r-az"></dd>
         <dt>Уголок вдоль Откоса</dt><dd id="r-l1"></dd>
-        <dt>Уголок вбок</dt><dd id="r-l2"></dd>
+        <dt>Полочный кронштейн</dt><dd id="r-l2"></dd>
         <dt>Щит перед проёмом (смотришь прямо)</dt><dd id="r-front"></dd>
         <dt>Виден краем глаза из точки «глаз»</dt><dd id="r-eye"></dd>
         <dt>Чтобы не был виден отсюда, сдвиг вправо от</dt><dd id="r-min"></dd>
@@ -209,8 +209,8 @@ dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; te
 
     <p class="note">
       Принято примерно: проём 1200×1500, стена 510, Откос 120 от рамы до Фасада, рама 70.
-      Щит Ø154, 8 Тарелок с шагом 16 и Дно. Кронштейн — уголок 40×40, пластина с двумя анкерами
-      на Откосе. Красная пунктирная линия — граница обзора из точки «глаз» мимо угла Откоса:
+      Щит Ø154, 8 Тарелок с шагом 16 и Дно. Кронштейн — уголок 40×40 на двух анкерах вдоль Откоса;
+      в варианте «б» на его конце полочный Г-кронштейн на двух болтах М6. Красная пунктирная линия — граница обзора из точки «глаз» мимо угла Откоса:
       всё правее неё из комнаты не видно. «Сверху» — разрез на уровне Кронштейна.
     </p>
   </aside>
@@ -234,7 +234,8 @@ const PITCH = 16;
 const CONE_H = 20;
 const ARM_W = 40;
 const ARM_T = 4;
-const PLATE_H = 150;
+const SHELF_W = 30; // ширина полосы полочного кронштейна
+const SHELF_SIZES = [125, 150, 200, 250, 300];
 const SPACER = 20;
 const FLOOR_TO_TOP = ARM_T + SPACER + DISH_COUNT * PITCH + 40; // от низа Дна до верха консоли
 let TOP = 0;
@@ -353,6 +354,23 @@ function cylinder(r, y0, y1, x, z, mat, parent) {
   parent.add(mesh);
 }
 
+// Анкер или болт: короткий цилиндр поперёк плоскости Откоса.
+function pin(x, y, z) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 6, 16), mats.anchor);
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.set(x, y, z);
+  dyn.add(mesh);
+}
+
+// Ближайший ходовой размер полочного кронштейна, чтобы болт Щита встал на плече с запасом.
+function shelfSize(shift) {
+  const need = shift + 30;
+  const size = SHELF_SIZES.find((s) => {
+    return s >= need;
+  });
+  return size || need;
+}
+
 function shield(x, top, z, parent) {
   lathe([[0, 0], [LEDGE_R, 0], [DISH_R, -CONE_H]], top, parent, x, z);
   for (let i = 1; i <= DISH_COUNT; i++) {
@@ -418,19 +436,27 @@ function rebuild() {
   const z0 = -JAMB_DEPTH + 20;
   const z1 = az + ARM_W / 2;
 
-  // Уголок вдоль Откоса: горизонтальная полка сверху, вертикальная прижата к Откосу.
+  // Уголок вдоль Откоса: горизонтальная полка сверху, вертикальная прижата к Откосу анкерами.
   box(-ARM_W, 0, TOP - ARM_T, TOP, z0, z1, mats.steel, dyn);
   box(-ARM_T, 0, TOP - ARM_W, TOP - ARM_T, z0, z1, mats.steel, dyn);
-  box(-ARM_T, 0, TOP - PLATE_H, TOP - ARM_W, z0, -20, mats.steel, dyn);
-  [TOP - 70, TOP - 125].forEach((y) => {
-    const a = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 6, 16), mats.anchor);
-    a.rotation.z = Math.PI / 2;
-    a.position.set(-ARM_T - 2, y, -60);
-    dyn.add(a);
+  [-90, -45].forEach((z) => {
+    pin(-ARM_T - 3, TOP - ARM_W / 2, z);
   });
+  label('уголок 40×40', -ARM_W / 2, TOP + 110, -60, dyn);
+
+  // Полочный Г-кронштейн: стойка на двух болтах к концу уголка, плечо вправо, от проёма.
+  const shelf = shelfSize(shift);
   if (variant === 'b') {
-    box(-ARM_W, shift + ARM_W / 2, TOP - ARM_T, TOP, az - ARM_W / 2, z1, mats.steel, dyn);
-    box(-ARM_W, shift + ARM_W / 2, TOP - ARM_W, TOP - ARM_T, z1 - ARM_T, z1, mats.steel, dyn);
+    box(0, ARM_T, TOP - shelf, TOP, az - SHELF_W / 2, az + SHELF_W / 2, mats.steel, dyn);
+    box(0, shelf, TOP - ARM_T, TOP, az - SHELF_W / 2, az + SHELF_W / 2, mats.steel, dyn);
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(shelf * 0.6 * Math.SQRT2, 12, 3), mats.steel);
+    rib.rotation.z = Math.PI / 4;
+    rib.position.set(shelf * 0.3, TOP - shelf * 0.3, az);
+    dyn.add(rib);
+    [TOP - 12, TOP - 30].forEach((y) => {
+      pin(ARM_T + 3, y, az);
+    });
+    label('полочный кронштейн', shelf / 2 + 40, TOP + 110, az + 60, dyn);
   }
 
   const shieldTop = TOP - ARM_T - SPACER;
@@ -438,7 +464,6 @@ function rebuild() {
   cylinder(14, shieldTop, shieldTop + SPACER, ax, az, mats.frame, dyn);
   const shieldBottom = shield(ax, shieldTop, az, dyn);
   label('Щит', ax, shieldBottom - 90, az, dyn);
-  label('Кронштейн', variant === 'a' ? -20 : shift / 2, TOP + 120, az, dyn);
 
   // Глаз и граница обзора мимо угла Откоса.
   const eye = eyePos();
@@ -467,7 +492,7 @@ function rebuild() {
   const minShift = minHiddenShift(az, eye.x, eye.z);
   document.getElementById('r-az').textContent = `${az} мм`;
   document.getElementById('r-l1').textContent = `${z1 - z0} мм`;
-  document.getElementById('r-l2').textContent = variant === 'b' ? `${shift + ARM_W * 1.5} мм` : '—';
+  document.getElementById('r-l2').textContent = variant === 'b' ? `${shelf}×${shelf} мм` : '—';
   document.getElementById('r-front').innerHTML = pill(ax - DISH_R < 0);
   document.getElementById('r-eye').innerHTML = pill(visibleFrom(ax, az, eye.x, eye.z));
   document.getElementById('r-min').textContent = minShift === null ? '—' : `${minShift} мм`;
