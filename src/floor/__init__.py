@@ -10,9 +10,10 @@ import Part
 
 import thread
 from checks import MAX_OVERLAP
+from coupon import GAP_TOLERANCE
 from sensor import PLUG
 from sensor import params as sensor_params
-from skeleton import BEYOND, FLOOR, HOLDER, params
+from skeleton import BEYOND, BOTTOM_DISH, FLOOR, HOLDER, params
 
 V = FreeCAD.Vector
 X = V(1, 0, 0)
@@ -140,8 +141,45 @@ def hangs_on_hook(bodies):
     ]
 
 
+def thread_pair(bodies):
+    """Пара резьб: Дно в резьбовом кольце Нижней Тарелки без пересечения, щель = зазору.
+
+    Щель — от пояса резьбы Дна до Нижней Тарелки: от низа кольца на шаг не
+    доходя до низа Полки. Касание Диска с Полкой — упор, а не щель, и что
+    у Дна ниже кольца, в пояс не входит. Допуск щели — как у пары Пробника.
+    Нет Дна или Нижней Тарелки или кто-то из них null — молчит.
+    """
+    floor_shape = bodies.get(FLOOR)
+    dish = bodies.get(BOTTOM_DISH)
+    if floor_shape is None or dish is None:
+        return []
+    if floor_shape.isNull() or dish.isNull():
+        return []
+    errors = []
+    volume = floor_shape.common(dish).Volume
+    if volume > MAX_OVERLAP:
+        errors.append(
+            f"{FLOOR} ↔ {BOTTOM_DISH}: пара резьб без пересечения"
+            f" — пересечение {volume:.2f} мм³",
+        )
+    belt = Part.makeCylinder(
+        params.THREAD_DIAMETER / 2 + params.THREAD_RING_WALL,  # до наружной стенки кольца
+        params.THREAD_LENGTH - params.THREAD_PITCH,
+        V(0, 0, params.floor_top() - params.THREAD_LENGTH),
+        Z,
+    )
+    gap = floor_shape.common(belt).distToShape(dish)[0]
+    clearance = params.THREAD_CLEARANCE
+    if abs(gap - clearance) > GAP_TOLERANCE:
+        errors.append(
+            f"{FLOOR} ↔ {BOTTOM_DISH}: щель резьбы = зазору {clearance:g} мм"
+            f" — {gap:.3f} мм",
+        )
+    return errors
+
+
 # bodies → список ошибок, как в checks.py
-CHECKS = [hangs_on_hook]
+CHECKS = [hangs_on_hook, thread_pair]
 
 
 def build(doc):

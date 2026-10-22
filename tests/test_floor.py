@@ -4,6 +4,7 @@ import FreeCAD
 import Part
 
 import floor
+import stack
 
 V = FreeCAD.Vector
 
@@ -44,3 +45,19 @@ class FloorTest(unittest.TestCase):
         for name, bodies in cases.items():
             with self.subTest(name):
                 self.assertEqual(floor_errors(bodies), [])
+
+    def test_floor_shifted_down_in_thread_ring_breaks_thread_pair(self):
+        # 0.2 мм по оси — доля шага: щель по нормали с одной стороны зуба меньше зазора
+        bodies = {
+            "Нижняя Тарелка": stack.bottom_dish(),
+            "Дно": floor.floor().translated(V(0, 0, -0.2)),
+        }
+
+        errors = floor_errors(bodies)
+
+        self.assertError(errors, "Дно", "Нижняя Тарелка", "щель", "мм")
+
+    def test_thread_pair_is_silent_without_floor(self):
+        bodies = {"Нижняя Тарелка": stack.bottom_dish()}
+
+        self.assertEqual(floor_errors(bodies), [])
