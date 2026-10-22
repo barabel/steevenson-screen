@@ -15,7 +15,7 @@ import math
 import FreeCAD
 import Part
 
-from checks import MAX_OVERLAP
+from checks import GAP_TOLERANCE, MAX_OVERLAP
 from skeleton import params
 
 V = FreeCAD.Vector
@@ -189,6 +189,22 @@ def shapes():
     }
 
 
+def beside_shield(bodies):
+    """Сбоку от Щита пусто: низ Уголка и Поворота не ниже низа плеча."""
+    errors = []
+    for name in (ANGLE, TURN):
+        shape = bodies.get(name)
+        if shape is None or shape.isNull():
+            continue
+        depth = params.SPACER_HEIGHT - shape.BoundBox.ZMin
+        if depth > GAP_TOLERANCE:
+            errors.append(
+                f"{name}: сбоку от Щита пусто"
+                f" — на {depth:.2f} мм ниже низа плеча",
+            )
+    return errors
+
+
 def nuts_in_corner(bodies):
     """Гайки в углу: место каждой гайки болтов Поворот↔Уголок свободно от Поворота и Уголка.
 
@@ -243,6 +259,7 @@ def wrench_reaches_bolt(bodies):
 # bodies → список ошибок, как в checks.py; проверки Кронштейна — сюда
 CHECKS = [
     nuts_in_corner,
+    beside_shield,
     wrench_reaches_bolt,
 ]
 
