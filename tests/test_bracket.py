@@ -7,7 +7,7 @@ import Part
 import bracket
 import stack
 from checks import MAX_OVERLAP
-from skeleton import params
+from skeleton import BEYOND, params
 from test_skeleton import scene_errors
 
 V = FreeCAD.Vector
@@ -34,14 +34,18 @@ class NullCommon:
         return Part.Shape()
 
 
-class NutsInCornerTest(unittest.TestCase):
-    """Гайки в углу: места гаек M6 Поворот↔Уголок у стойки свободны."""
+class BracketTestCase(unittest.TestCase):
+    """Тесты проверок Кронштейна: assertError — есть ошибка со всеми словами."""
 
     def assertError(self, errors, *words):
         for error in errors:
             if all(word in error for word in words):
                 return
         self.fail(f"нет ошибки со словами {words}: {errors}")
+
+
+class NutsInCornerTest(BracketTestCase):
+    """Гайки в углу: места гаек M6 Поворот↔Уголок у стойки свободны."""
 
     def test_solid_gusset_in_corner_takes_nut_place(self):
         # сплошная косынка 40×40 во внутреннем углу над плечом
@@ -71,14 +75,8 @@ class NutsInCornerTest(unittest.TestCase):
                 self.assertEqual(bracket_errors(bodies), [])
 
 
-class BesideShieldTest(unittest.TestCase):
+class BesideShieldTest(BracketTestCase):
     """Проверка «сбоку от Щита пусто» на подставных телах."""
-
-    def assertError(self, errors, *words):
-        for error in errors:
-            if all(word in error for word in words):
-                return
-        self.fail(f"нет ошибки со словами {words}: {errors}")
 
     def test_turn_with_post_down_is_beside_shield(self):
         # переворот вокруг оси плеча: стойка 150 мм уходит вниз,
@@ -109,14 +107,8 @@ class BesideShieldTest(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
-class WrenchTest(unittest.TestCase):
+class WrenchTest(BracketTestCase):
     """Ключ к болту подвеса: над плечом вокруг оси Щита пусто."""
-
-    def assertError(self, errors, *words):
-        for error in errors:
-            if all(word in error for word in words):
-                return
-        self.fail(f"нет ошибки со словами {words}: {errors}")
 
     def test_body_over_hang_point_blocks_wrench(self):
         # кубик 10 мм на оси Щита, в 5 мм над верхом плеча
@@ -164,9 +156,19 @@ class SpacerTest(unittest.TestCase):
     """Узел подвеса: болт M6 по оси Щита сквозь плечо, Проставку и Крышку."""
 
     def test_hang_bolt_passes_arm_spacer_and_lid_to_nut(self):
-        # болт M6: от верха плеча (Проставка 20 + плечо 4) до низа гайки
-        # в Крышке (верх гайки — на 5 мм под Точкой подвеса, высота 5)
-        bolt = Part.makeCylinder(3, 34, V(0, 0, -10))
+        # болт M6 по оси Щита: от низа гайки в Крышке (над гайкой —
+        # HANG_NUT_COVER пластика до верха Крышки) сквозь Крышку, Проставку
+        # и плечо до BEYOND над верхом плеча
+        nut_bottom = (
+            params.dish_top(0)
+            - params.HANG_NUT_COVER
+            - params.HANG_NUT_HEIGHT
+        )
+        bolt = Part.makeCylinder(
+            params.HANG_BOLT_DIAMETER / 2,
+            bracket.arm_top() + BEYOND - nut_bottom,
+            V(0, 0, nut_bottom),
+        )
         bodies = {
             "Поворот": bracket.turn(),
             "Проставка": bracket.spacer(),
