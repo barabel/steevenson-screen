@@ -141,6 +141,9 @@ def down_exit(bodies):
     настоящего пути, поэтому проверка задевание не пропустит, но может
     поднять ложное у тела не на оси.
 
+    Путь Дна с Нижней Тарелкой не сравнивается: Дно выкручивается, его
+    витки идут по виткам резьбового кольца — это закрывает пара резьб.
+
     Нет Дна, Держателя или Заглушки или кто-то из них null — молчит.
     """
     leaving = [FLOOR, HOLDER, PLUG]
@@ -160,6 +163,8 @@ def down_exit(bodies):
         height = shape.BoundBox.ZMax - bottom
         path = Part.makeCylinder(radius, height, V(0, 0, bottom), Z)
         for other, other_shape in staying.items():
+            if (name, other) == (FLOOR, BOTTOM_DISH):
+                continue
             hit = path.common(other_shape)
             if not hit.isNull() and hit.Volume > MAX_OVERLAP:  # мимо — null
                 errors.append(
