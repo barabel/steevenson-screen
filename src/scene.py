@@ -7,12 +7,13 @@
 Пакет детали — папка в src/ с build(doc) → (тела, референсы) и CHECKS.
 Фазы добавляют свои пакеты в PARTS, каркас Прогона не меняется.
 """
+import bracket
 import floor
 import sensor
 import skeleton
 import stack
 
-PARTS = [stack, floor, skeleton, sensor]
+PARTS = [stack, floor, bracket, skeleton, sensor]
 
 
 def build(doc):
