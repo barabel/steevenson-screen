@@ -11,7 +11,7 @@ import FreeCAD
 import Part
 
 import thread
-from checks import MAX_OVERLAP, check
+from checks import GAP_TOLERANCE, MAX_OVERLAP, check
 from skeleton import BEYOND
 from skeleton import params as skeleton_params
 
@@ -123,9 +123,6 @@ def screwed_in(shape, into):
         round(target.Center.y, AXIS_DECIMALS) - round(box.Center.y, AXIS_DECIMALS),
         round((target.ZMin - box.ZMin) / pitch) * pitch,
     ))
-
-
-GAP_TOLERANCE = 0.02  # мм, на щели пары
 
 
 def pair(bodies):

@@ -34,6 +34,7 @@ def positive_volume(bodies):
 
 
 MAX_OVERLAP = 0.001  # мм³, шум булевых операций
+GAP_TOLERANCE = 0.02  # мм, на щели пары
 
 
 def no_overlaps(bodies):

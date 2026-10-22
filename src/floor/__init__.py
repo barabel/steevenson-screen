@@ -9,8 +9,7 @@ import FreeCAD
 import Part
 
 import thread
-from checks import MAX_OVERLAP
-from coupon import GAP_TOLERANCE
+from checks import GAP_TOLERANCE, MAX_OVERLAP
 from sensor import PLUG
 from sensor import params as sensor_params
 from skeleton import BEYOND, BOTTOM_DISH, FLOOR, HOLDER, params, revolved
@@ -95,21 +94,39 @@ def floor():
     return sleeve.fuse(grip(bottom, root)).cut([bore] + drains)
 
 
+# градусы, половина центрального угла восьмигранника (360 / 8 / 2): от
+# середины грани до угла
+OCTAGON_HALF_ANGLE = 22.5
+
+
 def hook_section(center, radial):
     """Сечение Крючка: правильный восьмигранник под ключ HOOK_SECTION.
 
     Плоскость сечения — radial и Y, грани смотрят по radial и по Y.
     """
-    corner = params.HOOK_SECTION / 2 / math.cos(math.radians(22.5))
+    corner = params.HOOK_SECTION / 2 / math.cos(math.radians(OCTAGON_HALF_ANGLE))
     points = []
-    for i in range(9):
-        angle = math.radians(22.5 + 45 * i)
+    for i in range(8):
+        angle = math.radians(OCTAGON_HALF_ANGLE * (2 * i + 1))
         points.append(
             center
             + radial * (corner * math.cos(angle))
             + Y * (corner * math.sin(angle)),
         )
-    return Part.Face(Part.makePolygon(points))
+    return Part.Face(Part.makePolygon(points + points[:1]))
+
+
+def plate_corner():
+    """Угол пластины Держателя: задняя грань по X, край у Крючка по Y, верх Диска.
+
+    Задняя грань — за спиной Корпуса на толщину пластины; Крючок — у края
+    пластины по Y, пластина от него к +Y на HOLDER_WIDTH.
+    """
+    return V(
+        params.sensor_shift().x + sensor_params.CASE_X - params.HOLDER_THICKNESS,
+        -params.HOOK_SECTION / 2,
+        params.floor_top(),
+    )
 
 
 def holder():
@@ -124,12 +141,12 @@ def holder():
     у края пластины по Y: при печати на боку оба начинаются от стола.
     """
     ear = params.sensor_shift()  # центр отверстия Ушка
-    face = ear.x + sensor_params.CASE_X  # спина Корпуса
+    corner = plate_corner()
     thickness = params.HOLDER_THICKNESS
     half = params.HOOK_SECTION / 2
     bend = sensor_params.HANGER_BEND_RADIUS
     inner = bend - half  # внутренняя сторона дуги
-    flat = half * math.tan(math.radians(22.5))  # половина грани сечения
+    flat = half * math.tan(math.radians(OCTAGON_HALF_ANGLE))  # половина грани сечения
     # верх отверстия над углом грани сечения, на передней грани Ушка
     hole_top = math.sqrt((sensor_params.EAR_INNER_DIAMETER / 2) ** 2 - flat ** 2)
     ear_front = sensor_params.EAR_X + sensor_params.EAR_THICKNESS
@@ -141,21 +158,20 @@ def holder():
     # ось −Y: от низа дуги к +X, кончик вверх
     arc = section.revolve(center, Y * -1, sensor_params.HANGER_BEND_ANGLE)
     # стержень от начала дуги назад до середины толщины пластины
-    stem_length = (center.x + radial.x * bend - (face - thickness / 2)) / tangent.x
+    stem_length = (center.x + radial.x * bend - (corner.x + thickness / 2)) / tangent.x
     stem = section.extrude(tangent * -stem_length)
-    floor_top = params.floor_top()
     # верх пластины — по центру дуги, вровень с кончиком: стержень внутри неё
     plate = Part.makeBox(
         thickness,
         params.HOLDER_WIDTH,
-        center.z - floor_top,
-        V(face - thickness, -half, floor_top),
+        center.z - corner.z,
+        corner,
     )
     heel = Part.makeBox(
         params.HEEL_LENGTH,
         params.HOLDER_WIDTH,
         params.HEEL_THICKNESS,
-        V(face - thickness - params.HEEL_LENGTH, -half, floor_top),
+        corner - V(params.HEEL_LENGTH, 0, 0),
     )
     return plate.fuse([heel, stem, arc]).removeSplitter()
 
@@ -166,9 +182,9 @@ def screw_holes():
     Оси — посередине длины Пятки, рядом по Y симметрично середине ширины
     пластины.
     """
-    back = params.sensor_shift().x + sensor_params.CASE_X - params.HOLDER_THICKNESS
-    x = back - params.HEEL_LENGTH / 2
-    middle = params.HOLDER_WIDTH / 2 - params.HOOK_SECTION / 2  # пластина от −half
+    corner = plate_corner()
+    x = corner.x - params.HEEL_LENGTH / 2
+    middle = corner.y + params.HOLDER_WIDTH / 2
     bottom = params.floor_top() - params.FLOOR_DISK_THICKNESS - BEYOND
     depth = params.FLOOR_DISK_THICKNESS + params.HEEL_THICKNESS + 2 * BEYOND
     holes = []

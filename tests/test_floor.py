@@ -1,10 +1,13 @@
 import unittest
+from unittest import mock
 
 import FreeCAD
 import Part
 
 import floor
 import stack
+from skeleton import params
+from test_skeleton import scene_errors
 
 V = FreeCAD.Vector
 
@@ -61,3 +64,10 @@ class FloorTest(unittest.TestCase):
         bodies = {"Нижняя Тарелка": stack.bottom_dish()}
 
         self.assertEqual(floor_errors(bodies), [])
+
+    def test_grip_raised_into_thread_ring_overlaps_bottom_dish(self):
+        # верх хвата на 5 мм выше низа резьбового кольца
+        with mock.patch.dict(vars(params), {"FLOOR_GRIP_GAP": -5}):
+            errors = scene_errors()
+
+        self.assertError(errors, "Дно", "Нижняя Тарелка", "пересечение")
