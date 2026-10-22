@@ -192,6 +192,8 @@ dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; te
         <button id="cam-street" type="button" data-c="street" aria-pressed="true">С улицы</button>
         <button id="cam-room" type="button" data-c="room" aria-pressed="false">Из комнаты</button>
         <button id="cam-plan" type="button" data-c="plan" aria-pressed="false">Сверху</button>
+        <button id="cam-node" type="button" data-c="node" aria-pressed="false">Узел подвеса</button>
+        <button id="cam-joint" type="button" data-c="joint" aria-pressed="false">Стык</button>
       </div>
     </div>
 
@@ -200,7 +202,7 @@ dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; te
       <dl>
         <dt>Ось Щита за Фасадом</dt><dd id="r-az"></dd>
         <dt>Уголок вдоль Откоса</dt><dd id="r-l1"></dd>
-        <dt>Полочный кронштейн</dt><dd id="r-l2"></dd>
+        <dt>Поворот: стойка × плечо</dt><dd id="r-l2"></dd>
         <dt>Щит перед проёмом (смотришь прямо)</dt><dd id="r-front"></dd>
         <dt>Виден краем глаза из точки «глаз»</dt><dd id="r-eye"></dd>
         <dt>Чтобы не был виден отсюда, сдвиг вправо от</dt><dd id="r-min"></dd>
@@ -209,9 +211,11 @@ dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; te
 
     <p class="note">
       Принято примерно: проём 1200×1500, стена 510, Откос 120 от рамы до Фасада, рама 70.
-      Щит Ø154, 8 Тарелок с шагом 16 и Дно. Кронштейн — уголок 40×40 на двух анкерах вдоль Откоса;
-      в варианте «б» на его конце полочный Г-кронштейн на двух болтах М6. Красная пунктирная линия — граница обзора из точки «глаз» мимо угла Откоса:
+      Щит Ø154, 8 Тарелок с шагом 16 и Дно. Кронштейн — Уголок 40×40 на двух анкерах вдоль Откоса;
+      в варианте «б» на его конце Поворот — полочный Г-кронштейн стойкой вверх на двух болтах M6, плечо на уровне низа полки Уголка.
+      Щит висит под плечом на болте M6 через Проставку. Красная пунктирная линия — граница обзора из точки «глаз» мимо угла Откоса:
       всё правее неё из комнаты не видно. «Сверху» — разрез на уровне Кронштейна.
+      «Узел подвеса» и «Стык» — разрез по оси Щита, вид с улицы. Красный цилиндр — зона ключа r25 над плечом у болта подвеса.
     </p>
   </aside>
 </main>
@@ -234,11 +238,27 @@ const PITCH = 16;
 const CONE_H = 20;
 const ARM_W = 40;
 const ARM_T = 4;
-const SHELF_W = 30; // ширина полосы полочного кронштейна
+const SHELF_W = 30; // ширина стойки и плеча Поворота
 const SHELF_SIZES = [125, 150, 200, 250, 300];
-const SPACER = 20;
-const FLOOR_TO_TOP = ARM_T + SPACER + DISH_COUNT * PITCH + 40; // от низа Дна до верха консоли
-let TOP = 0;
+const BRACE_W = 12; // подкос — полоса 12×3 в плоскости через ось Щита
+const BRACE_T = 3;
+const BRACE_MAX = 75; // подкос садится на плечо не дальше этого от стойки
+const BRACE_UP = 75; // подкос садится на стойку выше верха плеча
+const KEY_R = 25; // зона ключа вокруг болта подвеса, над плечом
+const KEY_H = 40;
+const SPACER = 20; // высота Проставки
+const SPACER_R = 20; // Проставка Ø40: паз под плечо 30 и две стенки
+const SLOT_WALL = 3; // стенки паза выше дна паза, ниже толщины плеча
+const CLEARANCE = 0.25; // зазор под печать: паз и отверстие Проставки
+const BOLT_R = 3; // M6
+const HEX_R = 10 / Math.sqrt(3); // гайка и головка M6 под ключ 10
+const NUT_H = 5;
+const NUT_COVER = 5; // пластик Крышки над гайкой
+const WASHER_R = 6; // шайба M6 Ø12
+const WASHER_T = 1.6;
+const JOINT_BOLTS = [10, 30]; // болты Поворот↔Уголок: выше верха плеча, в полосе полки Уголка
+const ABOVE_FLOOR = DISH_COUNT * PITCH + 40; // от низа Дна до верха Крышки
+let TOP = 0; // верх Уголка
 const EYE_Y = 750;
 const EYE_X = -OPEN_W / 2;
 const GLASS_Z = -JAMB_DEPTH - FRAME_T / 2;
@@ -265,12 +285,16 @@ const mats = {
   frame: new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 }),
   glass: new THREE.MeshStandardMaterial({ color: 0x8fbcd6, transparent: true, opacity: 0.28, depthWrite: false }),
   sill: new THREE.MeshStandardMaterial({ color: 0x9aa1a6, roughness: 0.5 }),
-  steel: new THREE.MeshStandardMaterial({ color: 0x5f6770, metalness: 0.5, roughness: 0.45 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0x5f6770, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide }),
   anchor: new THREE.MeshStandardMaterial({ color: 0x1d1d1d }),
+  bolt: new THREE.MeshStandardMaterial({ color: 0x2b2e31, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide }),
+  spacer: new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.7, side: THREE.DoubleSide }),
+  zone: new THREE.MeshStandardMaterial({ color: 0xd2402a, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
   shield: new THREE.MeshStandardMaterial({ color: 0xf6f6f1, roughness: 0.7, side: THREE.DoubleSide }),
   floor: new THREE.MeshStandardMaterial({ color: 0xd9dcd6, roughness: 0.7 }),
   eye: new THREE.MeshStandardMaterial({ color: 0xc4542b }),
 };
+const leaderMat = new THREE.LineBasicMaterial({ color: 0x22262a, depthTest: false });
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x33352f, transparent: true, opacity: 0.35 });
 
 function box(x0, x1, y0, y1, z0, z1, mat, parent) {
@@ -282,7 +306,9 @@ function box(x0, x1, y0, y1, z0, z1, mat, parent) {
   return mesh;
 }
 
-function label(text, x, y, z, parent) {
+// Подпись-спрайт. scale — мм на пиксель холста: 2.4 для всей сцены, меньше для крупных планов.
+// target — точка, к которой тянется выноска.
+function label(text, x, y, z, parent, scale = 2.4, target = null) {
   const font = '600 34px system-ui, sans-serif';
   const c = document.createElement('canvas');
   const ctx = c.getContext('2d');
@@ -307,16 +333,26 @@ function label(text, x, y, z, parent) {
     map: new THREE.CanvasTexture(c),
     depthTest: false,
   }));
-  sprite.scale.set(w * 2.4, h * 2.4, 1);
+  sprite.scale.set(w * scale, h * scale, 1);
   sprite.position.set(x, y, z);
   sprite.renderOrder = 10;
   parent.add(sprite);
+  if (target) {
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, z), target]),
+      leaderMat,
+    );
+    line.renderOrder = 9;
+    parent.add(line);
+  }
   return sprite;
 }
 
 // Стена с проёмом, рама, отлив, подоконник, Откос.
 const fixed = new THREE.Group();
 scene.add(fixed);
+const fixedLabels = new THREE.Group();
+fixed.add(fixedLabels);
 box(-OPEN_W - 1000, -OPEN_W, -600, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
 box(0, 1000, -600, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
 box(-OPEN_W, 0, OPEN_H, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
@@ -330,14 +366,17 @@ box(-OPEN_W + FRAME_W, -FRAME_W, OPEN_H - FRAME_W, OPEN_H, -JAMB_DEPTH - FRAME_T
 box(-OPEN_W + FRAME_W, -FRAME_W, FRAME_W, OPEN_H - FRAME_W, GLASS_Z - 5, GLASS_Z + 5, mats.glass, fixed);
 box(-OPEN_W, 0, -2, 1, -JAMB_DEPTH, 50, mats.sill, fixed);
 box(-OPEN_W - 60, 60, -30, 0, -WALL - 250, -JAMB_DEPTH - FRAME_T, mats.inner, fixed);
-label('Откос', -70, 1100, -60, fixed);
-label('Фасад', 520, 1700, 5, fixed);
-label('Рама со стеклом', -600, 1250, GLASS_Z, fixed);
-label('улица', -600, 120, 900, fixed);
-label('комната', -600, 120, -WALL - 700, fixed);
+label('Откос', -70, 1100, -60, fixedLabels);
+label('Фасад', 520, 1700, 5, fixedLabels);
+label('Рама со стеклом', -600, 1250, GLASS_Z, fixedLabels);
+label('улица', -600, 120, 900, fixedLabels);
+label('комната', -600, 120, -WALL - 700, fixedLabels);
 
 const dyn = new THREE.Group();
 scene.add(dyn);
+// Подписи по камерам: общие — для сцены целиком, node и joint — для крупных планов.
+let labels = { big: new THREE.Group(), node: new THREE.Group(), joint: new THREE.Group() };
+let hang = null; // где узел подвеса: для камер крупного плана
 
 function lathe(points, y, parent, x, z) {
   const geo = new THREE.LatheGeometry(points.map(([r, h]) => {
@@ -348,10 +387,70 @@ function lathe(points, y, parent, x, z) {
   parent.add(mesh);
 }
 
-function cylinder(r, y0, y1, x, z, mat, parent) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, y1 - y0, 24), mat);
+function cylinder(r, y0, y1, x, z, mat, parent, segments = 24) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, y1 - y0, segments), mat);
   mesh.position.set(x, (y0 + y1) / 2, z);
   parent.add(mesh);
+}
+
+// Цилиндр по оси x: болты Поворот↔Уголок, шайбы, гайки.
+function rodX(r, x0, x1, y, z, mat, segments = 16) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, x1 - x0, segments), mat);
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.set((x0 + x1) / 2, y, z);
+  dyn.add(mesh);
+}
+
+// Болт M6 Поворот↔Уголок: головка внутри Уголка, шайба и гайка — во внутреннем углу Поворота.
+function jointBolt(y, z) {
+  rodX(HEX_R, -ARM_T - 4, -ARM_T, y, z, mats.bolt, 6);
+  rodX(BOLT_R, -ARM_T - 4, ARM_T + WASHER_T + NUT_H + 2, y, z, mats.bolt);
+  rodX(WASHER_R, ARM_T, ARM_T + WASHER_T, y, z, mats.bolt, 24);
+  rodX(HEX_R, ARM_T + WASHER_T, ARM_T + WASHER_T + NUT_H, y, z, mats.bolt, 6);
+}
+
+// Подкос: полоса от стойки к плечу во внутреннем углу Поворота, в плоскости через ось Щита.
+// foot — где садится на плечо, от стойки; y0 — верх плеча.
+function brace(foot, y0, z) {
+  const run = BRACE_W * Math.SQRT2;
+  const shape = new THREE.Shape();
+  shape.moveTo(foot, y0);
+  shape.lineTo(foot - run, y0);
+  shape.lineTo(ARM_T, y0 + BRACE_UP - run);
+  shape.lineTo(ARM_T, y0 + BRACE_UP);
+  shape.closePath();
+  const g = new THREE.ExtrudeGeometry(shape, { depth: BRACE_T, bevelEnabled: false });
+  const mesh = new THREE.Mesh(g, mats.steel);
+  mesh.position.z = z - BRACE_T / 2;
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edgeMat));
+  dyn.add(mesh);
+}
+
+// Печатная деталь: плоский контур, вытянутый вверх на h от y.
+function printed(shape, h, x, y, z) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: 32 });
+  const mesh = new THREE.Mesh(g, mats.spacer);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(x, y, z);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), edgeMat));
+  dyn.add(mesh);
+}
+
+// Проставка: Ø40 с отверстием под болт, сверху паз под плечо — две стенки по бокам плеча.
+function spacer(x, y, z) {
+  const body = new THREE.Shape();
+  body.absarc(0, 0, SPACER_R, 0, Math.PI * 2, false);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, BOLT_R + CLEARANCE, 0, Math.PI * 2, true);
+  body.holes.push(hole);
+  printed(body, SPACER, x, y, z);
+  const a = Math.asin((SHELF_W / 2 + CLEARANCE) / SPACER_R);
+  [a, Math.PI + a].forEach((start) => {
+    const wall = new THREE.Shape();
+    wall.absarc(0, 0, SPACER_R, start, start + Math.PI - 2 * a, false);
+    wall.closePath();
+    printed(wall, SLOT_WALL, x, y + SPACER, z);
+  });
 }
 
 // Анкер или болт: короткий цилиндр поперёк плоскости Откоса.
@@ -428,13 +527,21 @@ function eyePos() {
 
 function rebuild() {
   dyn.clear();
-  TOP = Number(ui.height.value) + FLOOR_TO_TOP;
+  labels = { big: new THREE.Group(), node: new THREE.Group(), joint: new THREE.Group() };
+  dyn.add(labels.big, labels.node, labels.joint);
   const gap = Number(ui.gap.value);
   const shift = Number(ui.shift.value);
   const az = gap + DISH_R;
   const ax = variant === 'a' ? -ARM_W / 2 : shift;
+  // По высоте снизу вверх: верх Крышки (Точка подвеса), Проставка, плечо Поворота
+  // (в варианте «а» — полка Уголка), над плечом — Уголок.
+  const shieldTop = Number(ui.height.value) + ABOVE_FLOOR;
+  const armBottom = shieldTop + SPACER;
+  const shoulderTop = armBottom + ARM_T;
+  TOP = variant === 'a' ? shoulderTop : shoulderTop + ARM_W;
+  hang = { ax, az, shieldTop, shoulderTop };
   const z0 = -JAMB_DEPTH + 20;
-  const z1 = az + ARM_W / 2;
+  const z1 = az + (variant === 'a' ? ARM_W : SHELF_W) / 2;
 
   // Уголок вдоль Откоса: горизонтальная полка сверху, вертикальная прижата к Откосу анкерами.
   box(-ARM_W, 0, TOP - ARM_T, TOP, z0, z1, mats.steel, dyn);
@@ -442,35 +549,84 @@ function rebuild() {
   [-90, -45].forEach((z) => {
     pin(-ARM_T - 3, TOP - ARM_W / 2, z);
   });
-  label('уголок 40×40', -ARM_W / 2, TOP + 110, -60, dyn);
+  label('Уголок', -ARM_W / 2, TOP + 110, -60, labels.big);
 
-  // Полочный Г-кронштейн: стойка на двух болтах к концу уголка, плечо вправо, от проёма.
+  // Поворот — полочный Г-кронштейн стойкой вверх: нижние 40 мм стойки на двух болтах
+  // к концу Уголка, плечо внизу, на уровне низа полки Уголка, вправо, от проёма.
+  // Подкос — над плечом; под плечом и сбоку от Щита железа нет.
   const shelf = shelfSize(shift);
   if (variant === 'b') {
-    box(0, ARM_T, TOP - shelf, TOP, az - SHELF_W / 2, az + SHELF_W / 2, mats.steel, dyn);
-    box(0, shelf, TOP - ARM_T, TOP, az - SHELF_W / 2, az + SHELF_W / 2, mats.steel, dyn);
-    const rib = new THREE.Mesh(new THREE.BoxGeometry(shelf * 0.6 * Math.SQRT2, 12, 3), mats.steel);
-    rib.rotation.z = Math.PI / 4;
-    rib.position.set(shelf * 0.3, TOP - shelf * 0.3, az);
-    dyn.add(rib);
-    [TOP - 12, TOP - 30].forEach((y) => {
-      pin(ARM_T + 3, y, az);
+    const za = az - SHELF_W / 2;
+    const zb = az + SHELF_W / 2;
+    box(0, ARM_T, armBottom, armBottom + shelf, za, zb, mats.steel, dyn);
+    box(0, shelf, armBottom, shoulderTop, za, zb, mats.steel, dyn);
+    const foot = Math.max(40, Math.min(BRACE_MAX, shift - KEY_R));
+    brace(foot, shoulderTop, az);
+    JOINT_BOLTS.forEach((dy) => {
+      jointBolt(shoulderTop + dy, az);
     });
-    label('полочный кронштейн', shelf / 2 + 40, TOP + 110, az + 60, dyn);
+    const zone = new THREE.Mesh(new THREE.CylinderGeometry(KEY_R, KEY_R, KEY_H, 40, 1, true), mats.zone);
+    zone.position.set(ax, shoulderTop + KEY_H / 2, az);
+    dyn.add(zone);
+    label('Поворот', shelf + 250, TOP + 40, az + 60, labels.big);
+
+    // Подписи разреза стыка: в плоскости чуть за разрезом, чтобы их не отсекло.
+    const zl = az - 20;
+    const jl = (text, x, y, tx, ty) => {
+      return label(text, x, y, zl, labels.joint, 0.2, new THREE.Vector3(tx, ty, zl));
+    };
+    jl('Уголок', -90, TOP + 25, -20, TOP - 2);
+    jl('Поворот: стойка', -100, shoulderTop + 110, 2, shoulderTop + 100);
+    jl('Поворот: плечо', shelf + 10, shoulderTop + 30, shelf - 20, shoulderTop - 2);
+    jl('подкос', 55, shoulderTop + 110, foot - 35, shoulderTop + 32);
+    jl('гайки M6 с шайбами', -100, shoulderTop - 30, ARM_T + 4, shoulderTop + JOINT_BOLTS[0]);
+    jl(`зона ключа r${KEY_R}`, ax + 70, shoulderTop + 75, ax + 15, shoulderTop + KEY_H);
+    jl('Проставка', ax + 85, armBottom - 25, ax + SPACER_R - 2, shieldTop + 10);
+    const jamb = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, shieldTop - 60, zl),
+        new THREE.Vector3(0, TOP + 120, zl),
+      ]),
+      new THREE.LineDashedMaterial({ color: 0x22262a, dashSize: 6, gapSize: 4, depthTest: false }),
+    );
+    jamb.computeLineDistances();
+    jamb.renderOrder = 9;
+    labels.joint.add(jamb);
+    label('плоскость Откоса', 0, TOP + 135, zl, labels.joint, 0.2);
+
+    // Подписи узла подвеса.
+    const nl = (text, x, y, tx, ty) => {
+      return label(text, x, y, zl, labels.node, 0.12, new THREE.Vector3(tx, ty, zl));
+    };
+    nl('болт M6', ax - 45, shoulderTop + 18, ax - 5, shoulderTop + 3);
+    nl('Поворот: плечо', ax + 55, shoulderTop + 14, ax + 25, shoulderTop - 2);
+    nl(`зона ключа r${KEY_R}`, ax + 55, shoulderTop + 36, ax + 22, shoulderTop + 28);
+    nl(`Проставка Ø${SPACER_R * 2}, паз`, ax - 60, armBottom - 12, ax - 16, armBottom - 4);
+    nl('Точка подвеса', ax + 60, shieldTop + 6, ax + 1, shieldTop);
+    nl('гайка M6 в Крышке', ax - 60, shieldTop - 20, ax - 4, shieldTop - NUT_COVER - NUT_H / 2);
+    nl('Крышка', ax + 60, shieldTop - 20, ax + 45, shieldTop - 1);
   }
 
-  const shieldTop = TOP - ARM_T - SPACER;
-  cylinder(3, shieldTop - 10, TOP + 8, ax, az, mats.steel, dyn);
-  cylinder(14, shieldTop, shieldTop + SPACER, ax, az, mats.frame, dyn);
+  // Узел подвеса: болт M6 сверху через плечо и Проставку в гайку в Крышке.
+  const nutBottom = shieldTop - NUT_COVER - NUT_H;
+  cylinder(BOLT_R, nutBottom - 2, shoulderTop + 4, ax, az, mats.bolt, dyn);
+  cylinder(HEX_R, shoulderTop, shoulderTop + 4, ax, az, mats.bolt, dyn, 6);
+  cylinder(9, nutBottom, shieldTop, ax, az, mats.shield, dyn);
+  cylinder(HEX_R, nutBottom, nutBottom + NUT_H, ax, az, mats.bolt, dyn, 6);
+  if (variant === 'b') {
+    spacer(ax, shieldTop, az);
+  } else {
+    cylinder(SPACER_R, shieldTop, armBottom, ax, az, mats.spacer, dyn);
+  }
   const shieldBottom = shield(ax, shieldTop, az, dyn);
-  label('Щит', ax, shieldBottom - 90, az, dyn);
+  label('Щит', ax, shieldBottom - 90, az, labels.big);
 
   // Глаз и граница обзора мимо угла Откоса.
   const eye = eyePos();
   const eyeMesh = new THREE.Mesh(new THREE.SphereGeometry(25, 16, 12), mats.eye);
   eyeMesh.position.copy(eye);
   dyn.add(eyeMesh);
-  label('глаз', eye.x, eye.y + 110, eye.z, dyn);
+  label('глаз', eye.x, eye.y + 110, eye.z, labels.big);
   const far = az + 400;
   const t = (far - eye.z) / (0 - eye.z);
   const end = new THREE.Vector3(eye.x + (0 - eye.x) * t, eye.y, far);
@@ -500,14 +656,36 @@ function rebuild() {
   if (camMode !== 'street') {
     placeCamera();
   }
+  syncLabels();
   render();
+}
+
+// Крупные планы — свои подписи, мелкие; подписи всей сцены там мешают.
+function syncLabels() {
+  const close = camMode === 'node' || camMode === 'joint';
+  fixedLabels.visible = !close;
+  labels.big.visible = !close;
+  labels.node.visible = camMode === 'node';
+  labels.joint.visible = camMode === 'joint';
 }
 
 function placeCamera() {
   renderer.clippingPlanes = [];
   controls.enableZoom = true;
   camera.fov = 45;
-  if (camMode === 'street') {
+  syncLabels();
+  if (camMode === 'node' || camMode === 'joint') {
+    // Разрез по оси Щита: остаётся всё, что не ближе к улице, чем ось; смотрим с улицы.
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, 0, -1), hang.az)];
+    camera.fov = 20; // узкий угол: меньше перспективы, разрез читается как чертёж
+    if (camMode === 'node') {
+      camera.position.set(hang.ax + 110, hang.shieldTop + 110, hang.az + 420);
+      controls.target.set(hang.ax, hang.shieldTop + 12, hang.az);
+    } else {
+      camera.position.set(45, hang.shoulderTop + 20, hang.az + 1100);
+      controls.target.set(45, hang.shoulderTop + 20, hang.az);
+    }
+  } else if (camMode === 'street') {
     camera.position.set(1900, 1300, 2700);
     controls.target.set(-350, 550, 0);
   } else if (camMode === 'room') {
