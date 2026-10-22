@@ -98,14 +98,15 @@ def hook_section(center, radial):
 
 
 def holder():
-    """Держатель: пластина на Дне за Корпусом, наверху Крючок через Ушко.
+    """Держатель: Пятка на Диске, пластина за Корпусом, наверху Крючок через Ушко.
 
-    Корпус опирается на пластину спиной. Крючок — одна дуга по форме крючка
-    Вешалки: из пластины чуть вниз, низ дуги под центром отверстия Ушка,
-    кончик вверх. Центр дуги — над центром отверстия, на такой высоте, что
-    верх отверстия у передней грани Ушка лежит на внутренней стороне дуги —
-    на углах её грани, без пересечения. Крючок — у края пластины по Y:
-    при печати на боку оба начинаются от стола.
+    Пятка — от задней грани пластины к −X, в сторону от Носика, касается
+    Диска без пересечения. Корпус опирается на пластину спиной. Крючок — одна
+    дуга по форме крючка Вешалки: из пластины чуть вниз, низ дуги под центром
+    отверстия Ушка, кончик вверх. Центр дуги — над центром отверстия, на
+    такой высоте, что верх отверстия у передней грани Ушка лежит на
+    внутренней стороне дуги — на углах её грани, без пересечения. Крючок —
+    у края пластины по Y: при печати на боку оба начинаются от стола.
     """
     ear = params.sensor_shift()  # центр отверстия Ушка
     face = ear.x + sensor_params.CASE_X  # спина Корпуса
@@ -135,14 +136,46 @@ def holder():
         center.z - floor_top,
         V(face - thickness, -half, floor_top),
     )
-    return plate.fuse([stem, arc]).removeSplitter()
+    heel = Part.makeBox(
+        params.HEEL_LENGTH,
+        params.HOLDER_WIDTH,
+        params.HEEL_THICKNESS,
+        V(face - thickness - params.HEEL_LENGTH, -half, floor_top),
+    )
+    return plate.fuse([heel, stem, arc]).removeSplitter()
+
+
+def screw_holes():
+    """Отверстия под два винта M4 Держатель↔Дно: насквозь через Диск и Пятку.
+
+    Оси — посередине длины Пятки, рядом по Y симметрично середине ширины
+    пластины.
+    """
+    back = params.sensor_shift().x + sensor_params.CASE_X - params.HOLDER_THICKNESS
+    x = back - params.HEEL_LENGTH / 2
+    middle = params.HOLDER_WIDTH / 2 - params.HOOK_SECTION / 2  # пластина от −half
+    bottom = params.floor_top() - params.FLOOR_DISK_THICKNESS - BEYOND
+    depth = params.FLOOR_DISK_THICKNESS + params.HEEL_THICKNESS + 2 * BEYOND
+    holes = []
+    for side in (-1, 1):
+        y = middle + side * params.HEEL_SCREW_SPACING / 2
+        holes.append(
+            Part.makeCylinder(
+                params.STUD_HOLE_DIAMETER / 2,
+                depth,
+                V(x, y, bottom),
+                Z,
+            ),
+        )
+    return holes
 
 
 def shapes():
-    """Дно и Держатель: метка → Shape."""
+    """Дно и Держатель: метка → Shape. Отверстия под винты — в обоих, соосно."""
+    holes = screw_holes()
     return {
-        FLOOR: floor(),
-        HOLDER: holder(),
+        FLOOR: floor().cut(holes),
+        HOLDER: holder().cut(holes),
     }
 
 
