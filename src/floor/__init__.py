@@ -62,7 +62,8 @@ def floor():
     по всей длине резьбового кольца и от его низа: спираль та же, зуб
     посередине впадины кольца. Заход с фаской — сверху, у Диска: этот конец
     входит в кольцо первым. Стенка за впадинами — как у кольца. Хват — под
-    резьбовым кольцом с зазором, его не касается: второго упора нет.
+    резьбовым кольцом с зазором, его не касается: второго упора нет. В Диске —
+    дренаж: отверстия по окружности, насквозь.
     """
     diameter = params.THREAD_DIAMETER
     length = params.THREAD_LENGTH
@@ -70,14 +71,28 @@ def floor():
     bottom = params.floor_top() - length
     root = diameter / 2 - params.THREAD_DEPTH - clearance
     low = bottom - params.FLOOR_GRIP_GAP - params.FLOOR_GRIP_HEIGHT
+    disk_bottom = params.floor_top() - params.FLOOR_DISK_THICKNESS
     bore = Part.makeCylinder(
         root - params.THREAD_RING_WALL,
-        params.floor_top() - params.FLOOR_DISK_THICKNESS - low + BEYOND,
+        disk_bottom - low + BEYOND,
         V(0, 0, low - BEYOND),
         Z,
     )
+    drains = []
+    for i in range(params.FLOOR_DRAIN_COUNT):
+        angle = math.radians(i * 360 / params.FLOOR_DRAIN_COUNT)
+        drains.append(Part.makeCylinder(
+            params.FLOOR_DRAIN_DIAMETER / 2,
+            params.FLOOR_DISK_THICKNESS + 2 * BEYOND,
+            V(
+                params.FLOOR_DRAIN_RADIUS * math.cos(angle),
+                params.FLOOR_DRAIN_RADIUS * math.sin(angle),
+                disk_bottom - BEYOND,
+            ),
+            Z,
+        ))
     sleeve = thread.external(diameter, length, clearance).translated(V(0, 0, bottom))
-    return sleeve.fuse(grip(bottom, root)).cut(bore)
+    return sleeve.fuse(grip(bottom, root)).cut([bore] + drains)
 
 
 def hook_section(center, radial):
