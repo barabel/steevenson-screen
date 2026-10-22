@@ -1,4 +1,4 @@
-"""Кронштейн Щита: Уголок и Поворот; проверки Кронштейна.
+"""Кронштейн Щита: Уголок и Поворот, Проставка под плечом; проверки Кронштейна.
 
 Размеры — из Скелета. Плоскость Откоса — x = −JAMB_SHIFT, проём — с её
 стороны −X. Фасад — плоскость y = facade_to_axis(), рама — дальше по +Y.
@@ -8,6 +8,7 @@
 Уголок — вдоль плоскости Откоса со стороны проёма: от рамы минус отступ до
 дальней от Фасада грани стойки, низ его вертикальной полки — на уровне верха
 плеча. Стойка касается вертикальной полки Уголка по плоскости Откоса.
+Проставка — между верхом Крышки и плечом, плечо лежит в её пазу.
 """
 import math
 
@@ -24,6 +25,7 @@ BEYOND = 1  # вырез выходит за грани тела: без сов�
 
 ANGLE = "Уголок"
 TURN = "Поворот"
+SPACER = "Проставка"
 
 
 def arm_top():
@@ -151,11 +153,39 @@ def turn():
     return turn_shape.cut(bolt_holes())
 
 
+def spacer():
+    """Проставка: цилиндр от верха Крышки до дна паза и стенки паза выше.
+
+    Плечо Поворота лежит на дне паза, стенки — по бокам плеча: Проставка
+    не проворачивается под ним. Отверстие под болт подвеса — по оси Щита.
+    Печать низом на стол, паз сверху: стенки растут от дна, нависаний нет.
+    """
+    clearance = params.HANG_CLEARANCE
+    radius = params.SPACER_DIAMETER / 2
+    height = params.SPACER_HEIGHT + params.SPACER_WALL_HEIGHT
+    slot_width = params.TURN_WIDTH + 2 * clearance
+    body = Part.makeCylinder(radius, height, V(0, 0, 0), Z)
+    slot = Part.makeBox(
+        2 * (radius + BEYOND),
+        slot_width,
+        params.SPACER_WALL_HEIGHT + BEYOND,
+        V(-radius - BEYOND, -slot_width / 2, params.SPACER_HEIGHT),
+    )
+    hole = Part.makeCylinder(
+        params.HANG_BOLT_DIAMETER / 2 + clearance,
+        height + 2 * BEYOND,
+        V(0, 0, -BEYOND),
+        Z,
+    )
+    return body.cut(slot).cut(hole).removeSplitter()
+
+
 def shapes():
     """Тела Кронштейна: метка → Shape."""
     return {
         ANGLE: angle(),
         TURN: turn(),
+        SPACER: spacer(),
     }
 
 
@@ -218,7 +248,7 @@ CHECKS = [
 
 
 def build(doc):
-    """Добавляет Уголок и Поворот в doc, возвращает (тела, референсы).
+    """Добавляет Уголок, Поворот и Проставку в doc, возвращает (тела, референсы).
 
     Пишет в лог длину Уголка и расстояние от плоскости Откоса до болта
     подвеса на Повороте: по ним Кронштейн покупают.
