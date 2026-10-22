@@ -1,7 +1,6 @@
-"""Скелет Щита: Черновики деталей из параметров Скелета, проверки Скелета.
+"""Скелет Щита: метки деталей, общие построения, проверки Скелета.
 
-Черновик — упрощённое тело детали под её меткой. Фаза детали убирает свой
-Черновик отсюда и добавляет в сцену свой пакет с той же меткой.
+Параметры — в skeleton.params. Тел Скелет не строит: их строят пакеты деталей.
 """
 import math
 
@@ -20,7 +19,6 @@ LID = "Крышка"
 BOTTOM_DISH = "Нижняя Тарелка"
 FLOOR = "Дно"
 HOLDER = "Держатель"
-BRACKET = "Кронштейн"
 
 
 def dish_label(index):
@@ -38,39 +36,6 @@ def revolved(points):
     for r, z in points + points[:1]:
         vertices.append(V(r, 0, z))
     return Part.Face(Part.makePolygon(vertices)).revolve(V(), Z, 360)
-
-
-def bracket():
-    """Кронштейн: пластина на плоскости Откоса и консоль над Точкой подвеса.
-
-    Консоль — на высоте проставки, за ось Щита на половину своей ширины.
-    """
-    jamb = params.jamb_x()
-    arm_top = params.SPACER_HEIGHT + params.BRACKET_ARM_THICKNESS
-    plate = Part.makeBox(
-        params.BRACKET_PLATE_THICKNESS,
-        params.BRACKET_PLATE_WIDTH,
-        params.BRACKET_PLATE_HEIGHT,
-        V(
-            jamb,
-            -params.BRACKET_PLATE_WIDTH / 2,
-            arm_top - params.BRACKET_PLATE_HEIGHT,
-        ),
-    )
-    arm = Part.makeBox(
-        params.bracket_reach() + params.BRACKET_ARM_WIDTH / 2,
-        params.BRACKET_ARM_WIDTH,
-        params.BRACKET_ARM_THICKNESS,
-        V(jamb, -params.BRACKET_ARM_WIDTH / 2, params.SPACER_HEIGHT),
-    )
-    return plate.fuse(arm).removeSplitter()
-
-
-def drafts():
-    """Черновики: метка → Shape — Кронштейн."""
-    return {
-        BRACKET: bracket(),
-    }
 
 
 def gap_error(name, shape, other, other_shape, minimum):
@@ -179,15 +144,5 @@ CHECKS = [plug_gap, hook_gap, down_exit]
 
 
 def build(doc):
-    """Добавляет Черновики в doc, возвращает (тела, референсы).
-
-    Пишет в лог вылет Кронштейна: по нему Кронштейн покупают.
-    """
-    print(f"вылет Кронштейна: {params.bracket_reach():g} мм", flush=True)
-    objects = []
-    for label, shape in drafts().items():
-        obj = doc.addObject("Part::Feature", "Draft")
-        obj.Label = label
-        obj.Shape = shape
-        objects.append(obj)
-    return objects, []
+    """Тел и референсов у Скелета нет: в сцене он только ради CHECKS."""
+    return [], []

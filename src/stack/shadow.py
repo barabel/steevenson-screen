@@ -3,17 +3,21 @@
 От точек Заглушки — лучи к солнцу: высота 0–90°, направление по всему кругу.
 Луч, не задевший ни одного тела, кроме самой Заглушки, уходит за габарит
 сцены — точка на солнце. Сама Заглушка лучи не загораживает: проверка
-строже, чем реальность.
+строже, чем реальность. Гайка болта подвеса загораживает, хоть телом в сцене
+и не моделируется: см. hang_nut.
 
 Тела — треугольники триангуляции. Она вписана в тело, щели в ней не уже
 настоящих: проверка не пропустит щель, а не выдумает тень.
 """
 import math
 
+import FreeCAD
 import MeshPart
+import Part
 import numpy
 
 from sensor import PLUG
+from skeleton import params
 
 ELEVATION_STEP = 5  # градусы, высота солнца 0, 5, …, 90
 AZIMUTH_STEP = 15  # градусы, направление 0, 15, …, 345 от +X к +Y
@@ -27,12 +31,33 @@ EDGE = 1e-9
 PARALLEL = 1e-12  # |det| меньше — луч параллелен треугольнику
 
 
+def hang_nut():
+    """Гайка M6 болта подвеса в гнезде Крышки, затянутая к потолку гнезда.
+
+    С болтом в ней гайка закрывает отверстие Точки подвеса снизу: по оси Щита
+    сквозь отверстия Крышки и Кронштейна свет не проходит. Цилиндр вписан
+    в шестигранник гайки: загораживает меньше настоящей. Потолок гнезда —
+    как в stack.nut_socket: импорт оттуда — цикл, stack импортирует shadow.
+    """
+    ceiling = params.dish_top(0) - params.HANG_NUT_COVER
+    return Part.makeCylinder(
+        params.HANG_NUT_WIDTH / 2,
+        params.HANG_NUT_HEIGHT,
+        FreeCAD.Vector(0, 0, ceiling - params.HANG_NUT_HEIGHT),
+    )
+
+
 def body_triangles(bodies):
-    """Треугольники всех тел, кроме Заглушки: массив T×3×3."""
-    result = [numpy.zeros((0, 3, 3))]
+    """Треугольники преград солнцу: гайка болта подвеса и все тела, кроме Заглушки.
+
+    Массив T×3×3.
+    """
+    shapes = [hang_nut()]
     for name, shape in bodies.items():
-        if name == PLUG or shape.isNull():
-            continue
+        if name != PLUG and not shape.isNull():
+            shapes.append(shape)
+    result = []
+    for shape in shapes:
         points, facets = shape.tessellate(BODY_DEFLECTION)
         vertices = numpy.array([[p.x, p.y, p.z] for p in points])
         result.append(vertices[numpy.array(facets, dtype=int).reshape(-1, 3)])

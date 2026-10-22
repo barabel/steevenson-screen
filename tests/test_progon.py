@@ -15,7 +15,7 @@ from skeleton import params
 VIEW_NAMES = ["front.png", "left.png", "section.png"]
 MESH_LABELS = ["Корпус, нижняя половина", "Корпус, верхняя половина", "Вешалка"]
 DISH_LABELS = [f"Тарелка {index}" for index in range(1, params.DISH_COUNT)]
-DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Кронштейн"]
+DRAFT_LABELS = ["Крышка", *DISH_LABELS, "Нижняя Тарелка", "Дно", "Держатель", "Уголок", "Поворот", "Проставка"]
 COUPON_LABELS = ["Кольцо Тарелки", "Кольцо Дна 0.3", "Кольцо Дна 0.4", "Кольцо Дна 0.5"]
 COUPON_STL_NAMES = ["ring-dish.stl", "ring-floor-0.3.stl", "ring-floor-0.4.stl", "ring-floor-0.5.stl"]
 
@@ -40,13 +40,18 @@ class ProgonTest(unittest.TestCase):
         result = self.result
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertRegex(result.stdout, r"вылет Кронштейна: \d+(\.\d+)? мм")
+        self.assertRegex(
+            result.stdout,
+            r"длина Уголка: \d+(\.\d+)? мм,"
+            r" от плоскости Откоса до болта подвеса: \d+(\.\d+)? мм",
+        )
         doc = FreeCAD.openDocument(str(FCSTD))
         try:
             labels = [obj.Label for obj in doc.Objects]
             self.assertIn("Заглушка", labels)
             for label in DRAFT_LABELS:
                 self.assertIn(label, labels)
+            self.assertNotIn("Кронштейн", labels)
             meshes = []
             for obj in doc.Objects:
                 if obj.isDerivedFrom("Mesh::Feature"):
