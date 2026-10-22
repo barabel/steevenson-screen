@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кронштейн на Откосе</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: сцена слева во всю высоту, узкая панель управления справа; на телефоне — друг под другом */
+:root {
+  --bg: #eceee9;
+  --panel: #f8f9f6;
+  --fg: #22262a;
+  --muted: #5d656c;
+  --line: #d3d7cf;
+  --accent: #b5532c;
+  --ok: #2c7446;
+  --bad: #a8352a;
+  --scene: #dfe3dc;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1e1c;
+    --panel: #232724;
+    --fg: #e6e8e3;
+    --muted: #a3aaa4;
+    --line: #3a403b;
+    --accent: #e08a62;
+    --ok: #6fc48c;
+    --bad: #f0857a;
+    --scene: #2a2f2b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1e1c;
+  --panel: #232724;
+  --fg: #e6e8e3;
+  --muted: #a3aaa4;
+  --line: #3a403b;
+  --accent: #e08a62;
+  --ok: #6fc48c;
+  --bad: #f0857a;
+  --scene: #2a2f2b;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+h1 { font-size: 18px; margin: 0; font-weight: 600; text-wrap: balance; }
+header .sub { color: var(--muted); font-size: 13px; }
+main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+}
+#view {
+  position: relative;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--scene);
+}
+#view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#hint {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+aside {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  min-width: 0;
+}
+.group { display: flex; flex-direction: column; gap: 8px; }
+.cap {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.seg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+.seg.two { grid-template-columns: 1fr 1fr; }
+.seg button {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.range { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+label.range .row { display: flex; justify-content: space-between; gap: 8px; }
+label.range output { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+label.range.off { opacity: .45; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.pill {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+}
+.pill.yes { color: var(--bad); }
+.pill.no { color: var(--ok); }
+.note { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 0; }
+@media (max-width: 760px) {
+  body { height: auto; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  #view { height: 62vh; min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Кронштейн на Откосе</h1>
+  <div class="sub">Черновая сцена, размеры примерные. Мм. Окно смотрит на улицу, Откос — правый.</div>
+</header>
+
+<main>
+  <div id="view">
+    <div id="hint">мышь — вращать, колесо — приблизить, правая кнопка — сдвинуть</div>
+  </div>
+
+  <aside>
+    <div class="group">
+      <div class="cap">Вариант Кронштейна</div>
+      <div class="seg two" id="variant">
+        <button id="var-a" type="button" data-v="a" aria-pressed="false">а) прямой</button>
+        <button id="var-b" type="button" data-v="b" aria-pressed="true">б) с поворотом</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="range" for="height">
+        <span class="row"><span>Дно над отливом</span><output id="height-out"></output></span>
+        <input id="height" type="range" min="100" max="1100" step="10" value="300">
+      </label>
+      <label class="range" for="gap">
+        <span class="row"><span>Воздух от Фасада до Щита</span><output id="gap-out"></output></span>
+        <input id="gap" type="range" min="50" max="300" step="10" value="150">
+      </label>
+      <label class="range" id="shift-wrap" for="shift">
+        <span class="row"><span>Сдвиг Щита вправо от Откоса</span><output id="shift-out"></output></span>
+        <input id="shift" type="range" min="0" max="400" step="10" value="100">
+      </label>
+      <label class="range" for="eye">
+        <span class="row"><span>Где ты стоишь: от стекла</span><output id="eye-out"></output></span>
+        <input id="eye" type="range" min="300" max="2000" step="50" value="800">
+      </label>
+    </div>
+
+    <div class="group">
+      <div class="cap">Камера</div>
+      <div class="seg" id="cams">
+        <button id="cam-street" type="button" data-c="street" aria-pressed="true">С улицы</button>
+        <button id="cam-room" type="button" data-c="room" aria-pressed="false">Из комнаты</button>
+        <button id="cam-plan" type="button" data-c="plan" aria-pressed="false">Сверху</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="cap">Что получилось</div>
+      <dl>
+        <dt>Ось Щита за Фасадом</dt><dd id="r-az"></dd>
+        <dt>Уголок вдоль Откоса</dt><dd id="r-l1"></dd>
+        <dt>Уголок вбок</dt><dd id="r-l2"></dd>
+        <dt>Щит перед проёмом (смотришь прямо)</dt><dd id="r-front"></dd>
+        <dt>Виден краем глаза из точки «глаз»</dt><dd id="r-eye"></dd>
+        <dt>Чтобы не был виден отсюда, сдвиг вправо от</dt><dd id="r-min"></dd>
+      </dl>
+    </div>
+
+    <p class="note">
+      Принято примерно: проём 1200×1500, стена 510, Откос 120 от рамы до Фасада, рама 70.
+      Щит Ø154, 8 Тарелок с шагом 16 и Дно. Кронштейн — уголок 40×40, пластина с двумя анкерами
+      на Откосе. Красная пунктирная линия — граница обзора из точки «глаз» мимо угла Откоса:
+      всё правее неё из комнаты не видно. «Сверху» — разрез на уровне Кронштейна.
+    </p>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// Оси: x — вправо (если смотреть из комнаты на улицу), y — вверх, z — на улицу. Фасад — плоскость z = 0.
+const OPEN_W = 1200;
+const OPEN_H = 1500;
+const WALL = 510;
+const JAMB_DEPTH = 120;
+const FRAME_T = 70;
+const FRAME_W = 60;
+const DISH_R = 77;
+const LEDGE_R = 62;
+const HOLE_R = 38;
+const DISH_COUNT = 7;
+const PITCH = 16;
+const CONE_H = 20;
+const ARM_W = 40;
+const ARM_T = 4;
+const PLATE_H = 150;
+const SPACER = 20;
+const FLOOR_TO_TOP = ARM_T + SPACER + DISH_COUNT * PITCH + 40; // от низа Дна до верха консоли
+let TOP = 0;
+const EYE_Y = 750;
+const EYE_X = -OPEN_W / 2;
+const GLASS_Z = -JAMB_DEPTH - FRAME_T / 2;
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 10, 40000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = false;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x80806f, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+sun.position.set(900, 2200, 2600);
+scene.add(sun);
+
+const mats = {
+  brick: new THREE.MeshStandardMaterial({ color: 0xcdbb9c, roughness: 0.95 }),
+  inner: new THREE.MeshStandardMaterial({ color: 0xeeeee8, roughness: 0.95 }),
+  jamb: new THREE.MeshStandardMaterial({ color: 0xe39a6e, roughness: 0.9 }),
+  frame: new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x8fbcd6, transparent: true, opacity: 0.28, depthWrite: false }),
+  sill: new THREE.MeshStandardMaterial({ color: 0x9aa1a6, roughness: 0.5 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0x5f6770, metalness: 0.5, roughness: 0.45 }),
+  anchor: new THREE.MeshStandardMaterial({ color: 0x1d1d1d }),
+  shield: new THREE.MeshStandardMaterial({ color: 0xf6f6f1, roughness: 0.7, side: THREE.DoubleSide }),
+  floor: new THREE.MeshStandardMaterial({ color: 0xd9dcd6, roughness: 0.7 }),
+  eye: new THREE.MeshStandardMaterial({ color: 0xc4542b }),
+};
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x33352f, transparent: true, opacity: 0.35 });
+
+function box(x0, x1, y0, y1, z0, z1, mat, parent) {
+  const geo = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+  parent.add(mesh);
+  return mesh;
+}
+
+function label(text, x, y, z, parent) {
+  const font = '600 34px system-ui, sans-serif';
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 26;
+  const h = 52;
+  c.width = w;
+  c.height = h;
+  ctx.font = font;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(10, 0);
+  ctx.arcTo(w, 0, w, h, 10);
+  ctx.arcTo(w, h, 0, h, 10);
+  ctx.arcTo(0, h, 0, 0, 10);
+  ctx.arcTo(0, 0, w, 0, 10);
+  ctx.fill();
+  ctx.fillStyle = '#22262a';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 13, h / 2 + 1);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c),
+    depthTest: false,
+  }));
+  sprite.scale.set(w * 2.4, h * 2.4, 1);
+  sprite.position.set(x, y, z);
+  sprite.renderOrder = 10;
+  parent.add(sprite);
+  return sprite;
+}
+
+// Стена с проёмом, рама, отлив, подоконник, Откос.
+const fixed = new THREE.Group();
+scene.add(fixed);
+box(-OPEN_W - 1000, -OPEN_W, -600, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
+box(0, 1000, -600, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
+box(-OPEN_W, 0, OPEN_H, OPEN_H + 600, -WALL, 0, mats.brick, fixed);
+box(-OPEN_W, 0, -600, 0, -WALL, 0, mats.brick, fixed);
+box(-OPEN_W - 1000, 1000, -600, OPEN_H + 600, -WALL - 20, -WALL, mats.inner, fixed);
+box(-1, 0, 0, OPEN_H, -JAMB_DEPTH, 0, mats.jamb, fixed);
+box(-OPEN_W, -OPEN_W + FRAME_W, 0, OPEN_H, -JAMB_DEPTH - FRAME_T, -JAMB_DEPTH, mats.frame, fixed);
+box(-FRAME_W, 0, 0, OPEN_H, -JAMB_DEPTH - FRAME_T, -JAMB_DEPTH, mats.frame, fixed);
+box(-OPEN_W + FRAME_W, -FRAME_W, 0, FRAME_W, -JAMB_DEPTH - FRAME_T, -JAMB_DEPTH, mats.frame, fixed);
+box(-OPEN_W + FRAME_W, -FRAME_W, OPEN_H - FRAME_W, OPEN_H, -JAMB_DEPTH - FRAME_T, -JAMB_DEPTH, mats.frame, fixed);
+box(-OPEN_W + FRAME_W, -FRAME_W, FRAME_W, OPEN_H - FRAME_W, GLASS_Z - 5, GLASS_Z + 5, mats.glass, fixed);
+box(-OPEN_W, 0, -2, 1, -JAMB_DEPTH, 50, mats.sill, fixed);
+box(-OPEN_W - 60, 60, -30, 0, -WALL - 250, -JAMB_DEPTH - FRAME_T, mats.inner, fixed);
+label('Откос', -70, 1100, -60, fixed);
+label('Фасад', 520, 1700, 5, fixed);
+label('Рама со стеклом', -600, 1250, GLASS_Z, fixed);
+label('улица', -600, 120, 900, fixed);
+label('комната', -600, 120, -WALL - 700, fixed);
+
+const dyn = new THREE.Group();
+scene.add(dyn);
+
+function lathe(points, y, parent, x, z) {
+  const geo = new THREE.LatheGeometry(points.map(([r, h]) => {
+    return new THREE.Vector2(r, h);
+  }), 48);
+  const mesh = new THREE.Mesh(geo, mats.shield);
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+}
+
+function cylinder(r, y0, y1, x, z, mat, parent) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, y1 - y0, 24), mat);
+  mesh.position.set(x, (y0 + y1) / 2, z);
+  parent.add(mesh);
+}
+
+function shield(x, top, z, parent) {
+  lathe([[0, 0], [LEDGE_R, 0], [DISH_R, -CONE_H]], top, parent, x, z);
+  for (let i = 1; i <= DISH_COUNT; i++) {
+    lathe([[HOLE_R, 0], [LEDGE_R, 0], [DISH_R, -CONE_H]], top - i * PITCH, parent, x, z);
+  }
+  const bottom = top - DISH_COUNT * PITCH;
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + k * Math.PI / 2;
+    cylinder(5, bottom, top, x + 56 * Math.cos(a), z + 56 * Math.sin(a), mats.shield, parent);
+  }
+  cylinder(49, bottom - 40, bottom, x, z, mats.shield, parent);
+  return bottom - 40;
+}
+
+// Виден ли Щит из точки глаза: луч от глаза к точке края Тарелки должен пройти через проём,
+// то есть пересечь плоскость Фасада левее угла Откоса (x < 0).
+function visibleFrom(ax, az, ex, ez) {
+  for (let k = 0; k < 120; k++) {
+    const a = k / 120 * Math.PI * 2;
+    const px = ax + DISH_R * Math.cos(a);
+    const pz = az + DISH_R * Math.sin(a);
+    const xf = ex + (px - ex) * (0 - ez) / (pz - ez);
+    if (xf < 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function minHiddenShift(az, ex, ez) {
+  for (let s = 0; s <= 2000; s += 5) {
+    if (!visibleFrom(s, az, ex, ez)) {
+      return s;
+    }
+  }
+  return null;
+}
+
+const ui = {
+  height: document.getElementById('height'),
+  gap: document.getElementById('gap'),
+  shift: document.getElementById('shift'),
+  eye: document.getElementById('eye'),
+};
+let variant = 'b';
+let camMode = 'street';
+
+function pill(yes) {
+  return yes ? '<span class="pill yes">да</span>' : '<span class="pill no">нет</span>';
+}
+
+function eyePos() {
+  return new THREE.Vector3(EYE_X, EYE_Y, GLASS_Z - Number(ui.eye.value));
+}
+
+function rebuild() {
+  dyn.clear();
+  TOP = Number(ui.height.value) + FLOOR_TO_TOP;
+  const gap = Number(ui.gap.value);
+  const shift = Number(ui.shift.value);
+  const az = gap + DISH_R;
+  const ax = variant === 'a' ? -ARM_W / 2 : shift;
+  const z0 = -JAMB_DEPTH + 20;
+  const z1 = az + ARM_W / 2;
+
+  // Уголок вдоль Откоса: горизонтальная полка сверху, вертикальная прижата к Откосу.
+  box(-ARM_W, 0, TOP - ARM_T, TOP, z0, z1, mats.steel, dyn);
+  box(-ARM_T, 0, TOP - ARM_W, TOP - ARM_T, z0, z1, mats.steel, dyn);
+  box(-ARM_T, 0, TOP - PLATE_H, TOP - ARM_W, z0, -20, mats.steel, dyn);
+  [TOP - 70, TOP - 125].forEach((y) => {
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 6, 16), mats.anchor);
+    a.rotation.z = Math.PI / 2;
+    a.position.set(-ARM_T - 2, y, -60);
+    dyn.add(a);
+  });
+  if (variant === 'b') {
+    box(-ARM_W, shift + ARM_W / 2, TOP - ARM_T, TOP, az - ARM_W / 2, z1, mats.steel, dyn);
+    box(-ARM_W, shift + ARM_W / 2, TOP - ARM_W, TOP - ARM_T, z1 - ARM_T, z1, mats.steel, dyn);
+  }
+
+  const shieldTop = TOP - ARM_T - SPACER;
+  cylinder(3, shieldTop - 10, TOP + 8, ax, az, mats.steel, dyn);
+  cylinder(14, shieldTop, shieldTop + SPACER, ax, az, mats.frame, dyn);
+  const shieldBottom = shield(ax, shieldTop, az, dyn);
+  label('Щит', ax, shieldBottom - 90, az, dyn);
+  label('Кронштейн', variant === 'a' ? -20 : shift / 2, TOP + 120, az, dyn);
+
+  // Глаз и граница обзора мимо угла Откоса.
+  const eye = eyePos();
+  const eyeMesh = new THREE.Mesh(new THREE.SphereGeometry(25, 16, 12), mats.eye);
+  eyeMesh.position.copy(eye);
+  dyn.add(eyeMesh);
+  label('глаз', eye.x, eye.y + 110, eye.z, dyn);
+  const far = az + 400;
+  const t = (far - eye.z) / (0 - eye.z);
+  const end = new THREE.Vector3(eye.x + (0 - eye.x) * t, eye.y, far);
+  const sight = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([eye, end]),
+    new THREE.LineDashedMaterial({ color: 0xd2402a, dashSize: 40, gapSize: 25, depthTest: false }),
+  );
+  sight.computeLineDistances();
+  sight.renderOrder = 9;
+  dyn.add(sight);
+
+  document.getElementById('height-out').textContent = `${ui.height.value} мм`;
+  document.getElementById('gap-out').textContent = `${gap} мм`;
+  document.getElementById('shift-out').textContent = `${shift} мм`;
+  document.getElementById('eye-out').textContent = `${ui.eye.value} мм`;
+  document.getElementById('shift-wrap').classList.toggle('off', variant === 'a');
+  ui.shift.disabled = variant === 'a';
+
+  const minShift = minHiddenShift(az, eye.x, eye.z);
+  document.getElementById('r-az').textContent = `${az} мм`;
+  document.getElementById('r-l1').textContent = `${z1 - z0} мм`;
+  document.getElementById('r-l2').textContent = variant === 'b' ? `${shift + ARM_W * 1.5} мм` : '—';
+  document.getElementById('r-front').innerHTML = pill(ax - DISH_R < 0);
+  document.getElementById('r-eye').innerHTML = pill(visibleFrom(ax, az, eye.x, eye.z));
+  document.getElementById('r-min').textContent = minShift === null ? '—' : `${minShift} мм`;
+
+  if (camMode !== 'street') {
+    placeCamera();
+  }
+  render();
+}
+
+function placeCamera() {
+  renderer.clippingPlanes = [];
+  controls.enableZoom = true;
+  camera.fov = 45;
+  if (camMode === 'street') {
+    camera.position.set(1900, 1300, 2700);
+    controls.target.set(-350, 550, 0);
+  } else if (camMode === 'room') {
+    const eye = eyePos();
+    camera.fov = 65;
+    camera.position.copy(eye);
+    controls.target.set(eye.x, eye.y, eye.z + 10);
+    controls.enableZoom = false;
+  } else {
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), TOP + 60)];
+    camera.position.set(-250, 4200, 260);
+    controls.target.set(-250, 750, 250);
+  }
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+function applyTheme() {
+  const css = getComputedStyle(document.documentElement);
+  scene.background = new THREE.Color(css.getPropertyValue('--scene').trim());
+  render();
+}
+
+function resize() {
+  const w = view.clientWidth;
+  const h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  render();
+}
+
+document.getElementById('variant').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) {
+    return;
+  }
+  variant = btn.dataset.v;
+  document.querySelectorAll('#variant button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b === btn));
+  });
+  rebuild();
+});
+
+document.getElementById('cams').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) {
+    return;
+  }
+  camMode = btn.dataset.c;
+  document.querySelectorAll('#cams button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b === btn));
+  });
+  placeCamera();
+  render();
+});
+
+Object.values(ui).forEach((el) => {
+  el.addEventListener('input', rebuild);
+});
+controls.addEventListener('change', render);
+new ResizeObserver(resize).observe(view);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+placeCamera();
+rebuild();
+applyTheme();
+resize();
+</script>
+</body>
+</html>
