@@ -6,8 +6,9 @@
 import FreeCAD
 import Part
 
+import thread
 from sensor import params as sensor_params
-from skeleton import FLOOR, HOLDER, params
+from skeleton import BEYOND, FLOOR, HOLDER, params
 
 V = FreeCAD.Vector
 X = V(1, 0, 0)
@@ -15,22 +16,27 @@ Z = V(0, 0, 1)
 
 
 def floor():
-    """Дно: цилиндр в резьбовом кольце по сердечнику наружной резьбы, без витков.
+    """Дно: сверху Диск, вниз от него Обечайка с наружной резьбой.
 
-    Сердечник — впадины витков Дна с зазором резьбы: Дно проходит
-    внутри витков резьбового кольца, не задевая их.
+    Верх Диска — в верхе Дна Скелета, на низе Полки Нижней Тарелки: это
+    упор, касание без пересечения. Витки — модулем резьбы с зазором Скелета,
+    по всей длине резьбового кольца и от его низа: спираль та же, зуб
+    посередине впадины кольца. Заход с фаской — сверху, у Диска: этот конец
+    входит в кольцо первым. Стенка за впадинами — как у кольца.
     """
-    radius = (
-        params.THREAD_DIAMETER / 2
-        - params.THREAD_DEPTH
-        - params.THREAD_CLEARANCE
-    )
-    return Part.makeCylinder(
-        radius,
-        params.THREAD_LENGTH,
-        V(0, 0, params.floor_top() - params.THREAD_LENGTH),
+    diameter = params.THREAD_DIAMETER
+    length = params.THREAD_LENGTH
+    clearance = params.THREAD_CLEARANCE
+    bottom = params.floor_top() - length
+    root = diameter / 2 - params.THREAD_DEPTH - clearance
+    bore = Part.makeCylinder(
+        root - params.THREAD_RING_WALL,
+        length - params.FLOOR_DISK_THICKNESS + BEYOND,
+        V(0, 0, bottom - BEYOND),
         Z,
     )
+    sleeve = thread.external(diameter, length, clearance).translated(V(0, 0, bottom))
+    return sleeve.cut(bore)
 
 
 def holder():
