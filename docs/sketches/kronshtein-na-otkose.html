@@ -256,7 +256,7 @@ const NUT_H = 5;
 const NUT_COVER = 5; // пластик Крышки над гайкой
 const WASHER_R = 6; // шайба M6 Ø12
 const WASHER_T = 1.6;
-const JOINT_BOLTS = [10, 30]; // болты Поворот↔Уголок: выше верха плеча, в полосе полки Уголка
+const JOINT_BOLTS = [10, 28]; // болты Поворот↔Уголок: выше верха плеча, в полосе полки Уголка
 const ABOVE_FLOOR = DISH_COUNT * PITCH + 40; // от низа Дна до верха Крышки
 let TOP = 0; // верх Уголка
 const EYE_Y = 750;
@@ -461,7 +461,7 @@ function pin(x, y, z) {
   dyn.add(mesh);
 }
 
-// Ближайший ходовой размер полочного кронштейна, чтобы болт Щита встал на плече с запасом.
+// Ближайший ходовой размер Поворота, чтобы болт подвеса встал на плече с запасом.
 function shelfSize(shift) {
   const need = shift + 30;
   const size = SHELF_SIZES.find((s) => {
