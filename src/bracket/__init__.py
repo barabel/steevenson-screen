@@ -247,7 +247,8 @@ def wrench_reaches_bolt(bodies):
         shape = bodies.get(name)
         if shape is None or shape.isNull():
             continue
-        volume = shape.common(zone).Volume
+        hit = shape.common(zone)
+        volume = 0 if hit.isNull() else hit.Volume  # мимо — null
         if volume > MAX_OVERLAP:
             errors.append(
                 f"{name}: закрывает болт подвеса, ключ не подлезет"

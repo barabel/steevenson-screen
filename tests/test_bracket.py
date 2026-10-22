@@ -21,6 +21,19 @@ def bracket_errors(bodies):
     return errors
 
 
+class NullCommon:
+    """Подставное тело: любое пересечение с ним — null-форма."""
+
+    def __init__(self, shape):
+        self.BoundBox = shape.BoundBox
+
+    def isNull(self):
+        return False
+
+    def common(self, other):
+        return Part.Shape()
+
+
 class NutsInCornerTest(unittest.TestCase):
     """Гайки в углу: места гаек M6 Поворот↔Уголок у стойки свободны."""
 
@@ -121,6 +134,11 @@ class WrenchTest(unittest.TestCase):
         for name, bodies in cases.items():
             with self.subTest(name):
                 self.assertEqual(bracket_errors(bodies), [])
+
+    def test_wrench_check_takes_null_common_as_miss(self):
+        bodies = {"Поворот": NullCommon(bracket.turn())}
+
+        self.assertEqual(bracket.wrench_reaches_bolt(bodies), [])
 
     def test_brace_landing_90_mm_from_jamb_blocks_wrench(self):
         # до оси Щита 10 мм: подкос заходит в зону ключа r25
